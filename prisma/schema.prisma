@@ -1,0 +1,317 @@
+// Prisma Schema for HomeServeX
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  phone        String      @unique
+  passwordHash String
+  name         String
+  role         String      @default("CUSTOMER") // CUSTOMER | PROVIDER | ADMIN
+  status       String      @default("ACTIVE")   // ACTIVE | SUSPENDED | PENDING_VERIFICATION
+  avatarUrl    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  customerProfile CustomerProfile?
+  providerProfile ProviderProfile?
+  auditLogs       AuditLog[]
+  supportTickets  SupportTicket[]
+  applianceAssets ApplianceAsset[]
+}
+
+model CustomerProfile {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  addresses Address[]
+  bookings  Booking[]
+  reviews   Review[]
+}
+
+model ProviderProfile {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills               String   // JSON string or comma-separated list of categories
+  bio                  String?
+  verificationStatus   String   @default("PENDING") // PENDING | APPROVED | REJECTED | SUSPENDED
+  verificationNotes    String?
+  availabilityStatus   String   @default("OFFLINE") // ONLINE | OFFLINE
+  ratingAverage        Float    @default(0.0)
+  totalRatingsCount    Int      @default(0)
+  completedJobsCount   Int      @default(0)
+  currentLatitude      Float?
+  currentLongitude     Float?
+  lastLocationUpdatedAt DateTime?
+
+  documents   ProviderDocument[]
+  assignments BookingAssignment[]
+  reviews     Review[]
+}
+
+model ProviderDocument {
+  id                 String          @id @default(uuid())
+  providerId         String
+  provider           ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  documentType       String          // e.g. GOVT_ID, TRADE_LICENSE, POLICE_CLEARANCE
+  documentUrl        String
+  verificationStatus String          @default("PENDING") // PENDING | APPROVED | REJECTED
+  rejectionReason    String?
+  createdAt          DateTime        @default(now())
+}
+
+model ServiceCategory {
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  description  String
+  iconUrl      String?
+  imageUrl     String?
+  displayOrder Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  services     Service[]
+}
+
+model Service {
+  id                      String          @id @default(uuid())
+  categoryId              String
+  category                ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name                    String
+  slug                    String          @unique
+  description             String
+  basePricePaise          Int             // Strictly in integer paise (e.g. 49900 = ₹499.00)
+  strikethroughPricePaise Int?            // e.g. 69900 = ₹699.00
+  estimatedDurationMinutes Int            // e.g. 60
+  rating                  Float           @default(4.8)
+  reviewCount             Int             @default(120)
+  imageUrl                String?
+  badge                   String?         // "Bestseller", "Instant 15-Min", "Eco-Friendly", "Combo Offer"
+  isPopular               Boolean         @default(false)
+  isActive                Boolean         @default(true)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  options                 ServiceOption[]
+  bookings                Booking[]
+  reviews                 Review[]
+}
+
+model ApplianceAsset {
+  id                     String          @id @default(uuid())
+  userId                 String
+  user                   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applianceType          String          // Air Conditioner, Washing Machine, Refrigerator, RO Water Purifier, etc.
+  name                   String?         // e.g. "Living Room Split AC"
+  brand                  String?         // e.g. "Daikin", "LG", "Samsung", "Kent"
+  modelNumber            String?
+  serialNumber           String?
+  healthScore            Int             @default(88) // 0-100%
+  status                 String          @default("GOOD") // EXCELLENT, GOOD, ATTENTION_NEEDED, CRITICAL
+  icon                   String?         // "❄️", "🧺", "🧊", "💧"
+  lastServiceDate        DateTime?
+  lastServiceNotes       String?
+  nextServiceDueDate     DateTime?
+  recommendedServiceSlug String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@index([userId])
+}
+
+model ServiceOption {
+  id                   String   @id @default(uuid())
+  serviceId            String
+  service              Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name                 String
+  description          String?
+  priceDeltaPaise      Int      @default(0)
+  durationDeltaMinutes Int      @default(0)
+  isDefault            Boolean  @default(false)
+}
+
+model Address {
+  id            String          @id @default(uuid())
+  customerId    String
+  customer      CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label         String          // e.g. Home, Office
+  streetAddress String
+  landmark      String?
+  city          String
+  state         String
+  postalCode    String
+  latitude      Float?
+  longitude     Float?
+  isDefault     Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+
+  bookings      Booking[]
+}
+
+model Booking {
+  id                     String          @id @default(uuid())
+  referenceNumber        String          @unique
+  customerId             String
+  customer               CustomerProfile @relation(fields: [customerId], references: [id])
+  serviceId              String
+  service                Service         @relation(fields: [serviceId], references: [id])
+  addressId              String
+  address                Address         @relation(fields: [addressId], references: [id])
+  scheduledSlot          DateTime
+  status                 String          @default("PENDING") // PENDING, SEARCHING_PROVIDER, ASSIGNED, PROVIDER_EN_ROUTE, ARRIVED, IN_PROGRESS, COMPLETED, CANCELLED
+  notes                  String?
+
+  // Financials in integer paise
+  baseAmountPaise        Int
+  optionsAmountPaise     Int             @default(0)
+  discountAmountPaise    Int             @default(0)
+  taxAmountPaise         Int             @default(0)
+  totalAmountPaise       Int
+  commissionAmountPaise  Int             @default(0)
+  providerEarningsPaise  Int             @default(0)
+
+  assignedProviderId     String?
+  paymentStatus          String          @default("PENDING") // PENDING, PROCESSING, PAID, FAILED, REFUND_PENDING, REFUNDED
+  cancellationReason     String?
+
+  // Real-time tracking columns
+  currentEtaMinutes      Int?
+  polylineRoute          String?
+  lastKnownLatitude      Float?
+  lastKnownLongitude     Float?
+
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  assignments            BookingAssignment[]
+  statusHistory          BookingStatusHistory[]
+  otps                   BookingOtp[]
+  payment                Payment?
+  invoice                Invoice?
+  review                 Review?
+}
+
+model BookingAssignment {
+  id          String          @id @default(uuid())
+  bookingId   String
+  booking     Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id])
+  status      String          @default("OFFERED") // OFFERED, ACCEPTED, REJECTED, CANCELLED
+  assignedAt  DateTime        @default(now())
+  respondedAt DateTime?
+
+  @@unique([bookingId, providerId])
+}
+
+model BookingStatusHistory {
+  id         String   @id @default(uuid())
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fromStatus String?
+  toStatus   String
+  reason     String?
+  changedById String?
+  createdAt  DateTime @default(now())
+}
+
+model BookingOtp {
+  id           String   @id @default(uuid())
+  bookingId    String
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  purpose      String   // START_SERVICE | COMPLETE_SERVICE
+  otpHash      String   // Secure cryptographic hash
+  expiresAt    DateTime
+  attemptCount Int      @default(0)
+  maxAttempts  Int      @default(3)
+  isConsumed   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([bookingId, purpose])
+}
+
+model Payment {
+  id                    String   @id @default(uuid())
+  bookingId             String   @unique
+  booking               Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amountPaise           Int
+  currency              String   @default("INR")
+  status                String   @default("PENDING") // PENDING, PROCESSING, PAID, FAILED, REFUNDED
+  providerTransactionId String?
+  paymentMethod         String   @default("CARD")    // CARD, UPI, NETBANKING, CASH_ON_DELIVERY
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  bookingId     String   @unique
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  invoiceNumber String   @unique
+  subtotalPaise Int
+  taxPaise      Int
+  totalPaise    Int
+  issuedAt      DateTime @default(now())
+}
+
+model Review {
+  id         String          @id @default(uuid())
+  bookingId  String          @unique
+  booking    Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   CustomerProfile @relation(fields: [customerId], references: [id])
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id])
+  serviceId  String
+  service    Service         @relation(fields: [serviceId], references: [id])
+  rating     Int             // 1 to 5
+  comment    String
+  isApproved Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+}
+
+model SupportTicket {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  category  String
+  priority  String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status    String   @default("OPEN")   // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  messages  String   // JSON string of conversation messages
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PlatformSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  resource   String
+  resourceId String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}

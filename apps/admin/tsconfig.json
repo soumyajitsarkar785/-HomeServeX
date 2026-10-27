@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "react-router-dom": ["../../node_modules/react-router-dom/dist/index.d.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

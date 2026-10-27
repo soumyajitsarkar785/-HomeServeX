@@ -1,0 +1,31 @@
+{
+  "name": "@homeservex/partner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "tsc && vite build",
+    "preview": "vite preview --port 5174",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@homeservex/api-client": "*",
+    "@homeservex/design-tokens": "*",
+    "@homeservex/shared-types": "*",
+    "@homeservex/ui": "*",
+    "@homeservex/validation": "*",
+    "@tanstack/react-query": "^5.39.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.51.5",
+    "react-router-dom": "^6.23.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}

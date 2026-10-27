@@ -1,0 +1,57 @@
+:root {
+  /* Brand Core Colors (Green Palette) */
+  --color-primary: #145C43;            /* Primary Forest Green */
+  --color-primary-hover: #0F4935;      /* Deep Forest Green Hover */
+  --color-primary-emerald: #16865D;    /* Primary Emerald */
+  --color-primary-dark: #0D3B2B;       /* Dark Forest */
+  --color-mint-light: #EAF6EF;         /* Light Mint Accent */
+  --color-mint-surface: #F2FAF5;       /* Very Soft Mint Surface */
+  --color-membership-orange: #E87A1E;  /* Membership Highlight Orange */
+  --color-membership-bg: #FFF4EB;      /* Membership Cream/Orange Surface */
+  
+  /* Layout & Background Surfaces */
+  --color-bg-main: #F7F9F7;            /* Main App Background */
+  --color-card-bg: #FFFFFF;            /* Card / Container Background */
+  --color-white: #FFFFFF;
+  --color-surface-subtle: #F0F4F1;     /* Subtle Secondary Surface */
+  
+  /* Typography & Neutral Hierarchy */
+  --color-text: #17211C;               /* Main Text (High Contrast) */
+  --color-text-secondary: #6B756F;     /* Secondary Text */
+  --color-text-muted: #8E9992;         /* Muted Text / Placeholders */
+  --color-border: #E4EAE5;             /* Border Color */
+  --color-border-hover: #C5D1C7;       /* Border Hover Color */
+
+  /* Semantic Feedback Colors */
+  --color-success: #188653;            /* Success Green */
+  --color-success-bg: #EAF7EE;         /* Success Surface */
+  --color-warning: #D99118;            /* Warning Amber */
+  --color-warning-bg: #FEF7E8;         /* Warning Surface */
+  --color-error: #D64545;              /* Error Crimson */
+  --color-error-bg: #FDF1F1;           /* Error Surface */
+  --color-danger: #D64545;
+  --color-danger-bg: #FDF1F1;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* 8px-Based Spatial & Corner Radii Scale */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* Elevation Shadows (Soft & Controlled) */
+  --shadow-xs: 0 1px 2px 0 rgba(23, 33, 28, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(23, 33, 28, 0.06), 0 1px 2px -1px rgba(23, 33, 28, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(23, 33, 28, 0.07), 0 2px 4px -2px rgba(23, 33, 28, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(23, 33, 28, 0.08), 0 4px 6px -4px rgba(23, 33, 28, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(23, 33, 28, 0.1), 0 8px 10px -6px rgba(23, 33, 28, 0.04);
+
+  /* Transitions */
+  --transition-fast: 0.15s ease-in-out;
+  --transition-normal: 0.25s ease-in-out;
+}

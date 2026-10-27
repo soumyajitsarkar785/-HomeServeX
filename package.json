@@ -1,0 +1,34 @@
+{
+  "name": "homeservex",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HomeServeX — Production-Oriented Home Services Booking Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"API,CUST,PART,ADMN\" -c \"blue,green,yellow,magenta\" \"npm run dev:api\" \"npm run dev:customer\" \"npm run dev:partner\" \"npm run dev:admin\"",
+    "dev:customer": "npm run dev --workspace=@homeservex/customer",
+    "dev:partner": "npm run dev --workspace=@homeservex/partner",
+    "dev:admin": "npm run dev --workspace=@homeservex/admin",
+    "dev:api": "npm run dev --workspace=@homeservex/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:integration": "vitest run tests/integration",
+    "test:workspaces": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "verify": "node scripts/verify-env.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prisma": "^5.14.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.5"
+  }
+}
