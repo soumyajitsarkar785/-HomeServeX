@@ -479,7 +479,7 @@ export const DashboardPage: React.FC = () => {
                         destination={{
                           latitude: b.address?.latitude || 19.0760,
                           longitude: b.address?.longitude || 72.8777,
-                          address: b.address ? `${b.address.streetAddress}, ${b.address.city}` : 'Your Home Location',
+                          address: typeof b.address === 'string' ? b.address : (b.address ? `${b.address.streetAddress}, ${b.address.city}` : 'Your Home Location'),
                           landmark: b.address?.landmark,
                         }}
                         providerLocation={liveLocation}
@@ -803,7 +803,7 @@ export const DashboardPage: React.FC = () => {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                           <span style={{ color: '#6B756F' }}>Service:</span>
-                          <span style={{ fontWeight: 800, color: '#17211C' }}>{b.service?.name}</span>
+                          <span style={{ fontWeight: 800, color: '#17211C' }}>{typeof b.service === 'string' ? b.service : b.service?.name}</span>
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
@@ -814,7 +814,7 @@ export const DashboardPage: React.FC = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                           <span style={{ color: '#6B756F' }}>Address:</span>
                           <span style={{ fontWeight: 700, color: '#17211C', maxWidth: '240px', textAlign: 'right' }}>
-                            {b.address ? `${b.address.streetAddress}, ${b.address.city}` : 'Confirmed Location'}
+                            {typeof b.address === 'string' ? b.address : (b.address ? `${b.address.streetAddress}, ${b.address.city}` : 'Confirmed Location')}
                           </span>
                         </div>
 

@@ -553,13 +553,23 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
       const refClean = b.referenceNumber.startsWith('#') ? b.referenceNumber : `#${b.referenceNumber}`;
       const defaultImg = 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80';
 
-      const rawAddr = (b.address?.streetAddress || 'Salt Lake Sector V, Kolkata, WB 700091').trim();
-      const cityStr = (b.address?.city || '').trim();
-      let cleanAddress = (cityStr && rawAddr.toLowerCase().includes(cityStr.toLowerCase()))
-        ? rawAddr
-        : `${rawAddr}${cityStr ? ', ' + cityStr : ''}`;
-      cleanAddress = cleanAddress.replace(/([a-zA-Z]{3,})\1/g, '$1');
-      cleanAddress = cleanAddress.replace(/\b([a-zA-Z]{3,})\b([,\s]+)\1\b/gi, '$1');
+      let cleanAddress = 'Salt Lake Sector V, Kolkata, WB 700091';
+      if (b.address?.streetAddress) {
+        cleanAddress = b.address.streetAddress.trim();
+        const city = b.address.city?.trim();
+        const state = b.address.state?.trim();
+        const pincode = b.address.postalCode?.trim();
+
+        if (city && !cleanAddress.toLowerCase().includes(city.toLowerCase())) {
+          cleanAddress += `, ${city}`;
+        }
+        if (state && !cleanAddress.toLowerCase().includes(state.toLowerCase())) {
+          cleanAddress += `, ${state}`;
+        }
+        if (pincode && !cleanAddress.includes(pincode)) {
+          cleanAddress += ` ${pincode}`;
+        }
+      }
       cleanAddress = cleanAddress.replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim();
 
       const isMatching = statusDB === 'SEARCHING_PROVIDER' || statusDB === 'PENDING';
@@ -591,9 +601,13 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
       return {
         id: refClean,
         bookingId: b.id,
+        referenceNumber: b.referenceNumber,
+        scheduledSlot: b.scheduledSlot,
+        totalAmountPaise: b.totalAmountPaise,
         isOngoing,
         rawStatus: statusDB,
         service: b.service?.name || 'Split AC Power Jet Cleaning',
+        serviceDetails: b.service,
         price: `₹${Math.round(b.totalAmountPaise / 100)}`,
         date: new Date(b.scheduledSlot).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         status: statusLabel,
@@ -602,6 +616,7 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
         technician,
         assignedProviderId: b.assignedProviderId,
         address: cleanAddress,
+        addressDetails: b.address,
         otp: orderStartOtp,
         completionOtp: orderCompOtp,
         currentEtaMinutes: statusLabel === 'Arrived' ? 0 : (b.currentEtaMinutes || (statusLabel === 'On the way' ? 12 : undefined)),
@@ -617,6 +632,9 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
         {
           id: '#HSX-CLN88219-4B022',
           bookingId: 'hist-cln-1',
+          referenceNumber: 'HSX-CLN88219-4B022',
+          scheduledSlot: new Date('2026-10-20T10:00:00Z'),
+          totalAmountPaise: 149900,
           isOngoing: false,
           service: 'Deep Home Cleaning & Sanitization',
           price: '₹1,499',
@@ -625,13 +643,16 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           statusType: 'completed' as const,
           imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80',
           technician: 'Amit Singh',
-          address: '221B Baker Street, London, NW1 6AE',
+          address: 'Salt Lake Sector V, Kolkata, WB 700091',
           otp: isPartner ? undefined : '5512',
           completionOtp: isPartner ? undefined : '8910',
         },
         {
           id: '#HSX-REF44120-9C114',
           bookingId: 'hist-ref-1',
+          referenceNumber: 'HSX-REF44120-9C114',
+          scheduledSlot: new Date('2026-10-15T14:30:00Z'),
+          totalAmountPaise: 64900,
           isOngoing: false,
           service: 'Refrigerator Dual Cooling Repair',
           price: '₹649',
@@ -640,13 +661,16 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           statusType: 'completed' as const,
           imageUrl: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=400&q=80',
           technician: 'Suresh Das',
-          address: '221B Baker Street, London, NW1 6AE',
+          address: 'Ballygunge Circular Road, Kolkata, WB 700019',
           otp: isPartner ? undefined : '3201',
           completionOtp: isPartner ? undefined : '9044',
         },
         {
           id: '#HSX-WSH31908-7D339',
           bookingId: 'hist-wsh-1',
+          referenceNumber: 'HSX-WSH31908-7D339',
+          scheduledSlot: new Date('2026-10-02T11:00:00Z'),
+          totalAmountPaise: 89900,
           isOngoing: false,
           service: 'Washing Machine Motor Overhaul',
           price: '₹899',
@@ -655,7 +679,7 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           statusType: 'completed' as const,
           imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=400&q=80',
           technician: 'Rahul Mehta',
-          address: '221B Baker Street, London, NW1 6AE',
+          address: 'Park Street, Kolkata, WB 700016',
           otp: isPartner ? undefined : '6712',
           completionOtp: isPartner ? undefined : '4410',
         },
@@ -664,6 +688,9 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
         {
           id: '#HSX-MCW10924-5A901',
           bookingId: 'hist-mcw-1',
+          referenceNumber: 'HSX-MCW10924-5A901',
+          scheduledSlot: new Date('2026-09-28T16:00:00Z'),
+          totalAmountPaise: 34900,
           isOngoing: false,
           service: 'Microwave Oven Magnetron Inspection',
           price: '₹349',
@@ -672,7 +699,7 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           statusType: 'cancelled' as const,
           imageUrl: 'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&w=400&q=80',
           technician: 'Unassigned',
-          address: '221B Baker Street, London, NW1 6AE',
+          address: 'New Town Action Area I, Kolkata, WB 700156',
           otp: isPartner ? undefined : '1102',
           completionOtp: isPartner ? undefined : '3349',
         },

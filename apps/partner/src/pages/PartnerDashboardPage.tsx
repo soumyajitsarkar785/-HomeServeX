@@ -657,7 +657,7 @@ export const PartnerDashboardPage: React.FC = () => {
                               Customer Address
                             </div>
                             <div style={{ fontSize: '14px', fontWeight: 600, color: '#17211C' }}>
-                              {booking.address ? `${booking.address.streetAddress}, ${booking.address.city}` : 'Address provided upon dispatch'}
+                              {typeof booking.address === 'string' ? booking.address : (booking.address ? `${booking.address.streetAddress}, ${booking.address.city}` : 'Address provided upon dispatch')}
                             </div>
                             {booking.address?.landmark && (
                               <div style={{ fontSize: '12px', color: '#6B756F', marginTop: '2px' }}>

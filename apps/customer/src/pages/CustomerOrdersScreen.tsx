@@ -19,12 +19,14 @@ export const CustomerOrdersScreen: React.FC<CustomerOrdersScreenProps> = ({
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const cleanDisplayAddress = (addr: string) => {
+  const cleanDisplayAddress = (addr: any) => {
     if (!addr) return activeSavedAddress;
-    let clean = addr.replace(/([a-zA-Z]{3,})\1/g, '$1');
-    clean = clean.replace(/\b([a-zA-Z]{3,})\b([,\s]+)\1\b/gi, '$1');
-    clean = clean.replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim();
-    return clean;
+    if (typeof addr === 'object') {
+      const parts = [addr.streetAddress, addr.city, addr.state, addr.postalCode].filter(Boolean);
+      return parts.join(', ') || activeSavedAddress;
+    }
+    let clean = String(addr).replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim();
+    return clean || activeSavedAddress;
   };
 
   const activeSavedAddress = (() => {

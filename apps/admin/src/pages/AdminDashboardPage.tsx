@@ -1013,7 +1013,7 @@ export const AdminDashboardPage: React.FC = () => {
                                   <div style={{ fontSize: '11.5px', color: '#6B756F' }}>{b.service?.category?.name}</div>
                                 </td>
                                 <td style={{ padding: '14px 18px', color: '#6B756F', maxWidth: '200px' }}>
-                                  {b.address ? `${b.address.streetAddress}, ${b.address.city}` : '—'}
+                                  {typeof b.address === 'string' ? b.address : (b.address ? `${b.address.streetAddress}, ${b.address.city}` : '—')}
                                 </td>
                                 <td style={{ padding: '14px 18px', color: '#6B756F' }}>
                                   {new Date(b.scheduledSlot).toLocaleDateString('en-IN', {
@@ -1589,7 +1589,7 @@ export const AdminDashboardPage: React.FC = () => {
             <div style={{ backgroundColor: '#F7F9F7', padding: '16px', borderRadius: '10px', border: '1px solid #E4EAE5' }}>
               <div style={{ fontWeight: 700, color: '#17211C', marginBottom: '4px' }}>Customer Service Address:</div>
               <div style={{ color: '#6B756F' }}>
-                {selectedBooking.address?.streetAddress}, {selectedBooking.address?.city}
+                {typeof selectedBooking.address === 'string' ? selectedBooking.address : `${selectedBooking.address?.streetAddress}, ${selectedBooking.address?.city}`}
               </div>
               {selectedBooking.address?.landmark && (
                 <div style={{ color: '#6B756F', fontSize: '12px', marginTop: '2px' }}>
