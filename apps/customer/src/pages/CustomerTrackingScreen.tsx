@@ -146,8 +146,8 @@ export const CustomerTrackingScreen: React.FC<CustomerTrackingScreenProps> = ({
   const providerPhone = liveState?.provider?.phone || '+91 98201 98765';
   const providerSpecialization = liveState?.provider?.specialization || 'Senior AC Servicing Specialist';
   const vehicleName = liveState?.provider?.vehicle || 'Hero Electric (MH 02 CD 4821)';
-  const displayStartOtp = liveState?.activeOtp?.otp || bookingDetails?.otp || '4821';
-  const displayCompleteOtp = bookingDetails?.completionOtp || '7394';
+  const displayStartOtp = liveState?.activeOtp?.purpose === 'START_SERVICE' ? liveState.activeOtp.otp : (bookingDetails?.otp || '');
+  const displayCompleteOtp = liveState?.activeOtp?.purpose === 'COMPLETE_SERVICE' ? liveState.activeOtp.otp : (bookingDetails?.completionOtp || '');
   const rawEta = liveState?.etaMinutes ?? (currentStatus === 'PROVIDER_EN_ROUTE' ? 12 : 18);
   const etaMinutes =
     currentStatus === 'ARRIVED' || currentStatus === 'IN_PROGRESS' || currentStatus === 'COMPLETED'

@@ -6,7 +6,7 @@ import { geoDispatch } from '../../lib/geoDispatch.js';
 import { config } from '../../config/env.js';
 import { authenticate, requireRole, AuthenticatedRequest } from '../../middleware/auth.js';
 import { providerRegisterSchema, updateProviderLocationSchema } from '@homeservex/validation';
-import { activeCustomerOtps } from '../bookings/bookings.routes.js';
+import { activeCustomerOtps, getOrCreateCustomerOtp } from '../bookings/bookings.routes.js';
 import { dispatchEngine } from '../../lib/dispatchEngine.js';
 import { commissionEngine } from '../../lib/commissionEngine.js';
 import { subscriptionEngine } from '../../lib/subscriptionEngine.js';
@@ -446,7 +446,7 @@ providerRouter.post('/bookings/:id/verify-start', authenticate, requireRole('PRO
       return;
     }
 
-    const isValid = otpCode === '4821' || (await bcrypt.compare(otpCode, otpRecord.otpHash));
+    const isValid = await bcrypt.compare(otpCode, otpRecord.otpHash);
     await prisma.bookingOtp.update({ where: { id: otpRecord.id }, data: { attemptCount: { increment: 1 } } });
 
     if (!isValid) {
@@ -464,14 +464,8 @@ providerRouter.post('/bookings/:id/verify-start', authenticate, requireRole('PRO
       data: { status: 'IN_PROGRESS', updatedAt: new Date() },
     });
 
-    // Step 2 Preparation: Generate Completion OTP (held exclusively on Customer App)
-    const completionOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const completionHash = await bcrypt.hash(completionOtp, 10);
-    const completionExpiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000); // 4 hours window
-    await prisma.bookingOtp.create({
-      data: { bookingId, purpose: 'COMPLETE_SERVICE', otpHash: completionHash, expiresAt: completionExpiresAt },
-    });
-    activeCustomerOtps.set(`${bookingId}_COMPLETE_SERVICE`, { otp: completionOtp, purpose: 'COMPLETE_SERVICE', expiresAt: completionExpiresAt });
+    // Step 2 Preparation: Generate random Completion OTP (held exclusively on Customer App)
+    await getOrCreateCustomerOtp(bookingId, 'COMPLETE_SERVICE');
 
     res.json({
       success: true,
@@ -519,7 +513,7 @@ providerRouter.post('/bookings/:id/verify-complete', authenticate, requireRole('
       return;
     }
 
-    const isValid = otpCode === '7394' || (await bcrypt.compare(otpCode, otpRecord.otpHash));
+    const isValid = await bcrypt.compare(otpCode, otpRecord.otpHash);
     await prisma.bookingOtp.update({ where: { id: otpRecord.id }, data: { attemptCount: { increment: 1 } } });
 
     if (!isValid) {

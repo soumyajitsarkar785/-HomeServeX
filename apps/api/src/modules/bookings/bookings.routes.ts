@@ -17,8 +17,40 @@ export const bookingsRouter = Router();
 // Secure in-memory store for authorized customer-side OTP display
 export const activeCustomerOtps = new Map<string, { otp: string; purpose: string; expiresAt: Date }>();
 
-function generateOtp(): string {
+export function generateOtp(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+/**
+ * Retrieves existing active random OTP or generates and persists a new random OTP hash.
+ * Never derives OTPs from reference numbers or static constants.
+ */
+export async function getOrCreateCustomerOtp(bookingId: string, purpose: 'START_SERVICE' | 'COMPLETE_SERVICE') {
+  const existing = activeCustomerOtps.get(`${bookingId}_${purpose}`);
+  if (existing && new Date() <= existing.expiresAt) {
+    return existing;
+  }
+  const otp = generateOtp();
+  const otpHash = await bcrypt.hash(otp, 10);
+  const expiresAt = new Date(Date.now() + (purpose === 'START_SERVICE' ? config.platform.otpExpiryMinutes * 60 * 1000 : 4 * 60 * 60 * 1000));
+
+  // Invalidate previous unconsumed OTPs for this booking & purpose so only the new random OTP is valid
+  await prisma.bookingOtp.updateMany({
+    where: { bookingId, purpose, isConsumed: false },
+    data: { isConsumed: true },
+  }).catch(() => {});
+
+  try {
+    await prisma.bookingOtp.create({
+      data: { bookingId, purpose, otpHash, expiresAt },
+    });
+  } catch (err) {
+    // If booking was concurrently deleted or not found, handle safely
+    console.warn(`[getOrCreateCustomerOtp] Booking ${bookingId} record not available for DB persist:`, (err as any)?.message || err);
+  }
+  const record = { otp, purpose, expiresAt };
+  activeCustomerOtps.set(`${bookingId}_${purpose}`, record);
+  return record;
 }
 
 function computeTotal(basePaise: number, optionsDelta: number, discountPaise = 0) {
@@ -489,7 +521,7 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
       }
     }
 
-    const formattedOrders = bookings.map(b => {
+    const formattedOrders = await Promise.all(bookings.map(async b => {
       const statusDB = b.status;
 
       const isOngoing = ['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED', 'IN_PROGRESS'].includes(statusDB);
@@ -532,11 +564,23 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
 
       const isMatching = statusDB === 'SEARCHING_PROVIDER' || statusDB === 'PENDING';
 
-      const activeOtpRecord = activeCustomerOtps.get(`${b.id}_START_SERVICE`);
-      const activeCompRecord = activeCustomerOtps.get(`${b.id}_COMPLETE_SERVICE`);
-      const seedOtp = b.referenceNumber ? String(1000 + Math.abs(b.referenceNumber.split('').reduce((acc, c) => (acc * 33 + c.charCodeAt(0)) % 8999, 0))) : '4821';
-      const orderStartOtp = activeOtpRecord ? activeOtpRecord.otp : seedOtp;
-      const orderCompOtp = activeCompRecord ? activeCompRecord.otp : '7394';
+      let orderStartOtp: string | undefined;
+      let orderCompOtp: string | undefined;
+
+      // Only expose OTPs to customer requests or admin; providers must never see customer OTPs in booking lists
+      if (!isPartner) {
+        let activeOtpRecord = activeCustomerOtps.get(`${b.id}_START_SERVICE`);
+        if (!activeOtpRecord && ['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED'].includes(statusDB)) {
+          activeOtpRecord = await getOrCreateCustomerOtp(b.id, 'START_SERVICE');
+        }
+        orderStartOtp = activeOtpRecord ? activeOtpRecord.otp : undefined;
+
+        let activeCompRecord = activeCustomerOtps.get(`${b.id}_COMPLETE_SERVICE`);
+        if (!activeCompRecord && statusDB === 'IN_PROGRESS') {
+          activeCompRecord = await getOrCreateCustomerOtp(b.id, 'COMPLETE_SERVICE');
+        }
+        orderCompOtp = activeCompRecord ? activeCompRecord.otp : undefined;
+      }
 
       const assignedAssignment = (b as any).assignments?.find((a: any) => a.status === 'ACCEPTED') || (b as any).assignments?.[0];
       const assignedName = (assignedAssignment as any)?.provider?.user?.name;
@@ -562,7 +606,7 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
         completionOtp: orderCompOtp,
         currentEtaMinutes: statusLabel === 'Arrived' ? 0 : (b.currentEtaMinutes || (statusLabel === 'On the way' ? 12 : undefined)),
       };
-    });
+    }));
 
     // Populate realistic historical orders if customer doesn't have completed/cancelled orders in DB yet
     const hasCompleted = formattedOrders.some(o => o.statusType === 'completed');
@@ -666,12 +710,12 @@ bookingsRouter.get('/:id', authenticate, async (req: AuthenticatedRequest, res: 
 
     let activeOtp: { otp: string; purpose: string } | undefined;
     if (req.user!.role === 'CUSTOMER') {
-      const start = activeCustomerOtps.get(`${booking.id}_START_SERVICE`);
-      const complete = activeCustomerOtps.get(`${booking.id}_COMPLETE_SERVICE`);
-      if (['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED'].includes(booking.status) && start && new Date() <= start.expiresAt) {
-        activeOtp = { otp: start.otp, purpose: 'START_SERVICE' };
-      } else if (booking.status === 'IN_PROGRESS' && complete && new Date() <= complete.expiresAt) {
-        activeOtp = { otp: complete.otp, purpose: 'COMPLETE_SERVICE' };
+      if (['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED'].includes(booking.status)) {
+        const challenge = await getOrCreateCustomerOtp(booking.id, 'START_SERVICE');
+        activeOtp = { otp: challenge.otp, purpose: 'START_SERVICE' };
+      } else if (booking.status === 'IN_PROGRESS') {
+        const challenge = await getOrCreateCustomerOtp(booking.id, 'COMPLETE_SERVICE');
+        activeOtp = { otp: challenge.otp, purpose: 'COMPLETE_SERVICE' };
       }
     }
 
@@ -742,15 +786,6 @@ bookingsRouter.post('/verify-otp', authenticate, async (req: AuthenticatedReques
       isValid = true;
     }
 
-    // Fallback handshake codes
-    if (!isValid) {
-      if (body.purpose === 'START_SERVICE' && (inputOtp === '4821' || inputOtp.length >= 4)) {
-        isValid = true;
-      } else if (body.purpose === 'COMPLETE_SERVICE' && (inputOtp === '7394' || inputOtp.length >= 4)) {
-        isValid = true;
-      }
-    }
-
     if (!isValid) {
       res.status(400).json({ success: false, error: { code: 'OTP_INVALID', message: 'Invalid OTP code' } });
       return;
@@ -763,15 +798,9 @@ bookingsRouter.post('/verify-otp', authenticate, async (req: AuthenticatedReques
       data: { status: newStatus, updatedAt: new Date() },
     });
 
-    // If starting, ensure completion OTP exists
-    let completionOtp: string = '7394';
+    // If starting, generate and persist random completion OTP
     if (body.purpose === 'START_SERVICE') {
-      const completionExpiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
-      activeCustomerOtps.set(`${booking.id}_COMPLETE_SERVICE`, {
-        otp: completionOtp,
-        purpose: 'COMPLETE_SERVICE',
-        expiresAt: completionExpiresAt,
-      });
+      await getOrCreateCustomerOtp(booking.id, 'COMPLETE_SERVICE');
     } else if (body.purpose === 'COMPLETE_SERVICE') {
       // Authoritative Financial Settlement & balanced double-entry ledger update
       let providerId = booking.assignedProviderId;
@@ -972,22 +1001,6 @@ bookingsRouter.post('/:id/arrived', authenticate, requireRole('PROVIDER'), async
   }
 });
 
-// Helper to get or create OTP for customer
-async function getOrCreateCustomerOtp(bookingId: string, purpose: 'START_SERVICE' | 'COMPLETE_SERVICE') {
-  const existing = activeCustomerOtps.get(`${bookingId}_${purpose}`);
-  if (existing && new Date() <= existing.expiresAt) {
-    return existing;
-  }
-  const otp = generateOtp();
-  const otpHash = await bcrypt.hash(otp, 10);
-  const expiresAt = new Date(Date.now() + (purpose === 'START_SERVICE' ? config.platform.otpExpiryMinutes * 60 * 1000 : 4 * 60 * 60 * 1000));
-  await prisma.bookingOtp.create({
-    data: { bookingId, purpose, otpHash, expiresAt },
-  });
-  const record = { otp, purpose, expiresAt };
-  activeCustomerOtps.set(`${bookingId}_${purpose}`, record);
-  return record;
-}
 
 // POST & GET /api/v1/bookings/:id/start-otp/display (CUSTOMER ONLY)
 async function handleDisplayStartOtp(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
@@ -1297,12 +1310,12 @@ bookingsRouter.get('/:id/track', authenticate, async (req: AuthenticatedRequest,
     // Customer OTP display
     let activeOtp: { otp: string; purpose: string } | undefined;
     if (req.user!.role === 'CUSTOMER') {
-      const start = activeCustomerOtps.get(`${booking.id}_START_SERVICE`);
-      const complete = activeCustomerOtps.get(`${booking.id}_COMPLETE_SERVICE`);
-      if (['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED'].includes(booking.status) && start && new Date() <= start.expiresAt) {
-        activeOtp = { otp: start.otp, purpose: 'START_SERVICE' };
-      } else if (booking.status === 'IN_PROGRESS' && complete && new Date() <= complete.expiresAt) {
-        activeOtp = { otp: complete.otp, purpose: 'COMPLETE_SERVICE' };
+      if (['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED'].includes(booking.status)) {
+        const challenge = await getOrCreateCustomerOtp(booking.id, 'START_SERVICE');
+        activeOtp = { otp: challenge.otp, purpose: 'START_SERVICE' };
+      } else if (booking.status === 'IN_PROGRESS') {
+        const challenge = await getOrCreateCustomerOtp(booking.id, 'COMPLETE_SERVICE');
+        activeOtp = { otp: challenge.otp, purpose: 'COMPLETE_SERVICE' };
       }
     }
 

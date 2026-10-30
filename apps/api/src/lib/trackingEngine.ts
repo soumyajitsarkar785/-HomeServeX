@@ -2,7 +2,7 @@ import type { Response } from 'express';
 import type { Socket } from 'net';
 import type { Duplex } from 'stream';
 import { prisma } from './prisma.js';
-import { activeCustomerOtps } from '../modules/bookings/bookings.routes.js';
+import { getOrCreateCustomerOtp } from '../modules/bookings/bookings.routes.js';
 
 export interface ProviderLivePosition {
   providerId: string;
@@ -447,25 +447,12 @@ class TrackingEngine {
     // Secure Customer Start OTP (Visible ONLY to customer)
     let activeOtp: { otp: string; purpose: string } | undefined;
     if (role === 'CUSTOMER') {
-      const start = activeCustomerOtps.get(`${booking.id}_START_SERVICE`);
-      const complete = activeCustomerOtps.get(`${booking.id}_COMPLETE_SERVICE`);
       if (['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED'].includes(booking.status)) {
-        if (start && new Date() <= start.expiresAt) {
-          activeOtp = { otp: start.otp, purpose: 'START_SERVICE' };
-        } else {
-          const seedDigits = booking.referenceNumber ? String(1000 + Math.abs(booking.referenceNumber.split('').reduce((acc, c) => (acc * 33 + c.charCodeAt(0)) % 8999, 0))) : '4821';
-          activeOtp = { otp: seedDigits, purpose: 'START_SERVICE' };
-          activeCustomerOtps.set(`${booking.id}_START_SERVICE`, {
-            otp: seedDigits,
-            purpose: 'START_SERVICE',
-            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-          });
-        }
-      } else if (booking.status === 'IN_PROGRESS' && complete && new Date() <= complete.expiresAt) {
-        activeOtp = { otp: complete.otp, purpose: 'COMPLETE_SERVICE' };
+        const challenge = await getOrCreateCustomerOtp(booking.id, 'START_SERVICE');
+        activeOtp = { otp: challenge.otp, purpose: 'START_SERVICE' };
       } else if (booking.status === 'IN_PROGRESS') {
-        const compSeed = booking.referenceNumber ? String(1000 + Math.abs((booking.referenceNumber + '_comp').split('').reduce((acc, c) => (acc * 37 + c.charCodeAt(0)) % 8999, 0))) : '7394';
-        activeOtp = { otp: compSeed, purpose: 'COMPLETE_SERVICE' };
+        const challenge = await getOrCreateCustomerOtp(booking.id, 'COMPLETE_SERVICE');
+        activeOtp = { otp: challenge.otp, purpose: 'COMPLETE_SERVICE' };
       }
     }
 

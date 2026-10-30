@@ -2063,7 +2063,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             >
               <div style={{ fontSize: '11px', color: '#166534', fontWeight: 700 }}>START SERVICE OTP</div>
               <div style={{ fontSize: '20px', fontWeight: 900, color: '#15803D', letterSpacing: '3px', marginTop: '2px' }}>
-                {confirmedScheduledOrder?.otp || '4821'}
+                {confirmedScheduledOrder?.otp || '—'}
               </div>
               <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>
                 Share with specialist when they arrive at your doorstep

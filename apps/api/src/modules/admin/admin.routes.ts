@@ -4,7 +4,7 @@ import path from 'path';
 import { prisma } from '../../lib/prisma.js';
 import { geoDispatch } from '../../lib/geoDispatch.js';
 import { authenticate, requireRole } from '../../middleware/auth.js';
-import { activeCustomerOtps } from '../bookings/bookings.routes.js';
+import { activeCustomerOtps, getOrCreateCustomerOtp } from '../bookings/bookings.routes.js';
 import { dispatchConfigService } from '../../lib/dispatchConfigService.js';
 import { dispatchEngine } from '../../lib/dispatchEngine.js';
 import { commissionEngine } from '../../lib/commissionEngine.js';
@@ -1073,7 +1073,7 @@ adminRouter.get('/orders', async (req, res: Response, next: NextFunction) => {
       prisma.booking.count({ where }),
     ]);
 
-    const formatted = bookings.map(b => {
+    const formatted = await Promise.all(bookings.map(async b => {
       let displayStatus = 'Pending';
       if (b.status === 'PROVIDER_EN_ROUTE' || b.status === 'ASSIGNED') displayStatus = 'On the way';
       else if (b.status === 'COMPLETED') displayStatus = 'Completed';
@@ -1089,13 +1089,16 @@ adminRouter.get('/orders', async (req, res: Response, next: NextFunction) => {
         ? assignedProvider 
         : (b.status === 'SEARCHING_PROVIDER' || b.status === 'PENDING' ? 'Searching nearby specialists...' : 'Unassigned (Awaiting Dispatch)');
 
-      const activeOtpRecord = activeCustomerOtps.get(`${b.id}_START_SERVICE`);
-      const activeCompRecord = activeCustomerOtps.get(`${b.id}_COMPLETE_SERVICE`);
-      const seedOtp = b.referenceNumber
-        ? String(1000 + Math.abs(b.referenceNumber.split('').reduce((acc, c) => (acc * 33 + c.charCodeAt(0)) % 8999, 0)))
-        : '4821';
-      const orderStartOtp = activeOtpRecord ? activeOtpRecord.otp : seedOtp;
-      const orderCompOtp = activeCompRecord ? activeCompRecord.otp : '7394';
+      let activeOtpRecord = activeCustomerOtps.get(`${b.id}_START_SERVICE`);
+      if (!activeOtpRecord && ['PENDING', 'SEARCHING_PROVIDER', 'ASSIGNED', 'PROVIDER_EN_ROUTE', 'ARRIVED'].includes(b.status)) {
+        activeOtpRecord = await getOrCreateCustomerOtp(b.id, 'START_SERVICE');
+      }
+      let activeCompRecord = activeCustomerOtps.get(`${b.id}_COMPLETE_SERVICE`);
+      if (!activeCompRecord && (b.status === 'IN_PROGRESS' || b.status === 'COMPLETED')) {
+        activeCompRecord = await getOrCreateCustomerOtp(b.id, 'COMPLETE_SERVICE');
+      }
+      const orderStartOtp = activeOtpRecord ? activeOtpRecord.otp : undefined;
+      const orderCompOtp = activeCompRecord ? activeCompRecord.otp : undefined;
 
       return {
         id: `#${b.referenceNumber}`,
@@ -1120,7 +1123,7 @@ adminRouter.get('/orders', async (req, res: Response, next: NextFunction) => {
         date: new Date(b.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         address: b.address?.streetAddress ? `${b.address.streetAddress}, ${b.address.city}` : 'Joynagar, Greater Kolkata, WB 700145',
       };
-    });
+    }));
 
     res.json({
       success: true,

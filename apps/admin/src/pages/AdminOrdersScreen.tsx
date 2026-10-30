@@ -542,13 +542,13 @@ export const AdminOrdersScreen: React.FC = () => {
                   <div style={{ backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Start Job OTP</div>
                     <div style={{ fontSize: '18px', fontWeight: 900, color: '#0E3E2F', letterSpacing: '3px' }}>
-
+                      {selectedOrder.startOtp || '—'}
                     </div>
                   </div>
                   <div style={{ backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Completion OTP</div>
                     <div style={{ fontSize: '18px', fontWeight: 900, color: '#16A34A', letterSpacing: '3px' }}>
-                      {selectedOrder.completionOtp || '7394'}
+                      {selectedOrder.completionOtp || '—'}
                     </div>
                   </div>
                 </div>

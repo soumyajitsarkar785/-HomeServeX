@@ -230,10 +230,8 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
       });
 
       const data = await res.json().catch(() => null);
-      const expectedStart = bookingData?.otp || '4821';
-      const expectedComplete = bookingData?.completionOtp || '7394';
-      const isStartValid = inputCode === expectedStart || inputCode === '4821' || (data && res.ok && data.success);
-      const isCompleteValid = inputCode === expectedComplete || inputCode === '7394' || (data && res.ok && data.success);
+      const isStartValid = Boolean(res.ok && data?.success);
+      const isCompleteValid = Boolean(res.ok && data?.success);
 
       if (purpose === 'START_SERVICE') {
         if (isStartValid) {
@@ -243,7 +241,7 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
           setSuccessToast('✓ Start OTP Verified! Service is now actively in progress.');
           setTimeout(() => setSuccessToast(''), 4000);
         } else {
-          setOtpError(`Invalid Start OTP. Please ask customer to read their 4-digit code (${expectedStart}).`);
+          setOtpError(data?.error?.message || 'Invalid Start OTP. Please ask customer to read the 4-digit code shown in their app.');
         }
       } else if (purpose === 'COMPLETE_SERVICE') {
         if (isCompleteValid) {
@@ -253,23 +251,11 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
           setSuccessToast(`✓ Completion OTP Verified! Job finished & ₹${bookingData?.price ? bookingData.price.replace(/[^\d]/g, '') : '742'} credited to wallet.`);
           setTimeout(() => setSuccessToast(''), 5000);
         } else {
-          setOtpError(`Invalid Completion OTP. Please ask customer for completion code (${expectedComplete}).`);
+          setOtpError(data?.error?.message || 'Invalid Completion OTP. Please ask customer for the completion sign-off code.');
         }
       }
     } catch {
-      const expectedStart = bookingData?.otp || '4821';
-      const expectedComplete = bookingData?.completionOtp || '7394';
-      if (purpose === 'START_SERVICE' && (inputCode === expectedStart || inputCode === '4821')) {
-        setCurrentStep('ON_SITE');
-        await updateBackendStatus('IN_PROGRESS');
-        setEnteredOtp('');
-      } else if (purpose === 'COMPLETE_SERVICE' && (inputCode === expectedComplete || inputCode === '7394')) {
-        setCurrentStep('COMPLETED');
-        await updateBackendStatus('COMPLETED');
-        setEnteredOtp('');
-      } else {
-        setOtpError(`Verification failed. Please check the 4-digit OTP provided by customer.`);
-      }
+      setOtpError('Network error verifying OTP. Please re-enter and try again.');
     } finally {
       setIsVerifying(false);
     }
@@ -675,7 +661,7 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                 📍 Technician at Doorstep!
               </div>
               <div style={{ fontSize: '12px', color: '#B45309', marginTop: '2px' }}>
-                Ask customer for <b>Start OTP (4821)</b> to begin AC jet washing.
+                Ask customer for their 4-digit <b>Start OTP</b> shown in their app to begin service.
               </div>
             </div>
 
@@ -689,7 +675,7 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                   setEnteredOtp(e.target.value.replace(/\D/g, ''));
                   if (otpError) setOtpError('');
                 }}
-                placeholder="Enter 4821"
+                placeholder="Enter 4-digit OTP"
                 style={{
                   flex: 1,
                   padding: '12px',
@@ -704,25 +690,6 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                   outline: 'none',
                 }}
               />
-              <button
-                onClick={() => {
-                  setEnteredOtp('4821');
-                  if (otpError) setOtpError('');
-                }}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: '1px dashed #16A34A',
-                  backgroundColor: '#EAF4EF',
-                  color: '#0E3E2F',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Auto-fill 4821
-              </button>
             </div>
 
             {otpError && (
@@ -733,20 +700,20 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
 
             <button
               id="provider-verify-start-otp-btn"
-              onClick={() => handleVerifyOtp(enteredOtp || '4821', 'START_SERVICE')}
-              disabled={isVerifying}
+              onClick={() => handleVerifyOtp(enteredOtp, 'START_SERVICE')}
+              disabled={isVerifying || enteredOtp.length < 4}
               style={{
                 width: '100%',
                 padding: '14px',
                 borderRadius: '26px',
                 border: 'none',
-                background: isVerifying ? '#94A3B8' : 'linear-gradient(180deg, #18B854 0%, #15803D 100%)',
+                background: (isVerifying || enteredOtp.length < 4) ? '#94A3B8' : 'linear-gradient(180deg, #18B854 0%, #15803D 100%)',
                 color: '#FFFFFF',
                 fontSize: '14px',
                 fontWeight: 800,
                 letterSpacing: '-0.2px',
-                cursor: isVerifying ? 'not-allowed' : 'pointer',
-                boxShadow: isVerifying ? 'none' : '0 6px 18px rgba(22, 163, 74, 0.38)',
+                cursor: (isVerifying || enteredOtp.length < 4) ? 'not-allowed' : 'pointer',
+                boxShadow: (isVerifying || enteredOtp.length < 4) ? 'none' : '0 6px 18px rgba(22, 163, 74, 0.38)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -754,23 +721,23 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                 transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
               onMouseEnter={(e) => {
-                if (!isVerifying) {
+                if (!isVerifying && enteredOtp.length >= 4) {
                   e.currentTarget.style.transform = 'translateY(-1px)';
                   e.currentTarget.style.boxShadow = '0 8px 24px rgba(22, 163, 74, 0.48)';
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = isVerifying ? 'none' : '0 6px 18px rgba(22, 163, 74, 0.38)';
+                e.currentTarget.style.boxShadow = (isVerifying || enteredOtp.length < 4) ? 'none' : '0 6px 18px rgba(22, 163, 74, 0.38)';
               }}
               onMouseDown={(e) => {
-                if (!isVerifying) e.currentTarget.style.transform = 'scale(0.98)';
+                if (!isVerifying && enteredOtp.length >= 4) e.currentTarget.style.transform = 'scale(0.98)';
               }}
               onMouseUp={(e) => {
-                if (!isVerifying) e.currentTarget.style.transform = 'translateY(-1px)';
+                if (!isVerifying && enteredOtp.length >= 4) e.currentTarget.style.transform = 'translateY(-1px)';
               }}
             >
-              <span>{isVerifying ? 'Verifying Handshake...' : 'Verify Start OTP (4821) & Start Service ➔'}</span>
+              <span>{isVerifying ? 'Verifying Handshake...' : 'Verify Start OTP & Begin Service ➔'}</span>
             </button>
           </div>
         )}
@@ -792,7 +759,7 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                 ⚡ AC Power Jet Cleaning in Progress
               </div>
               <div style={{ fontSize: '12px', color: '#0284C7', marginTop: '2px' }}>
-                Coil jet washing & cooling test underway. When finished, ask customer for <b>Completion OTP (7394)</b>.
+                Coil jet washing & cooling test underway. When finished, ask customer for their <b>Completion OTP</b>.
               </div>
             </div>
 
@@ -806,7 +773,7 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                   setEnteredOtp(e.target.value.replace(/\D/g, ''));
                   if (otpError) setOtpError('');
                 }}
-                placeholder="Enter 7394"
+                placeholder="Enter 4-digit code"
                 style={{
                   flex: 1,
                   padding: '12px',
@@ -821,25 +788,6 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                   outline: 'none',
                 }}
               />
-              <button
-                onClick={() => {
-                  setEnteredOtp('7394');
-                  if (otpError) setOtpError('');
-                }}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '12px',
-                  border: '1px dashed #0284C7',
-                  backgroundColor: '#E0F2FE',
-                  color: '#0369A1',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Auto-fill 7394
-              </button>
             </div>
 
             {otpError && (
@@ -850,20 +798,20 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
 
             <button
               id="provider-verify-complete-otp-btn"
-              onClick={() => handleVerifyOtp(enteredOtp || '7394', 'COMPLETE_SERVICE')}
-              disabled={isVerifying}
+              onClick={() => handleVerifyOtp(enteredOtp, 'COMPLETE_SERVICE')}
+              disabled={isVerifying || enteredOtp.length < 4}
               style={{
                 width: '100%',
                 padding: '14px',
                 borderRadius: '26px',
                 border: 'none',
-                background: isVerifying ? '#94A3B8' : 'linear-gradient(180deg, #145C43 0%, #0E3E2F 100%)',
+                background: (isVerifying || enteredOtp.length < 4) ? '#94A3B8' : 'linear-gradient(180deg, #145C43 0%, #0E3E2F 100%)',
                 color: '#FFFFFF',
                 fontSize: '14px',
                 fontWeight: 800,
                 letterSpacing: '-0.2px',
-                cursor: isVerifying ? 'not-allowed' : 'pointer',
-                boxShadow: isVerifying ? 'none' : '0 6px 18px rgba(14, 62, 47, 0.35)',
+                cursor: (isVerifying || enteredOtp.length < 4) ? 'not-allowed' : 'pointer',
+                boxShadow: (isVerifying || enteredOtp.length < 4) ? 'none' : '0 6px 18px rgba(14, 62, 47, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -871,23 +819,23 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                 transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
               onMouseEnter={(e) => {
-                if (!isVerifying) {
+                if (!isVerifying && enteredOtp.length >= 4) {
                   e.currentTarget.style.transform = 'translateY(-1px)';
                   e.currentTarget.style.boxShadow = '0 8px 24px rgba(14, 62, 47, 0.45)';
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = isVerifying ? 'none' : '0 6px 18px rgba(14, 62, 47, 0.35)';
+                e.currentTarget.style.boxShadow = (isVerifying || enteredOtp.length < 4) ? 'none' : '0 6px 18px rgba(14, 62, 47, 0.35)';
               }}
               onMouseDown={(e) => {
-                if (!isVerifying) e.currentTarget.style.transform = 'scale(0.98)';
+                if (!isVerifying && enteredOtp.length >= 4) e.currentTarget.style.transform = 'scale(0.98)';
               }}
               onMouseUp={(e) => {
-                if (!isVerifying) e.currentTarget.style.transform = 'translateY(-1px)';
+                if (!isVerifying && enteredOtp.length >= 4) e.currentTarget.style.transform = 'translateY(-1px)';
               }}
             >
-              <span>{isVerifying ? 'Verifying Completion...' : 'Verify Completion OTP (7394) & Complete Service ➔'}</span>
+              <span>{isVerifying ? 'Verifying Completion...' : 'Verify Completion OTP & Complete Service ➔'}</span>
             </button>
           </div>
         )}

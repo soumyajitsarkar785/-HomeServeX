@@ -508,7 +508,7 @@ export const CustomerOrdersScreen: React.FC<CustomerOrdersScreenProps> = ({
                           🧑‍🔧 {order.technician || 'Ramesh Kumar'} <b style={{ color: '#D97706' }}>★ 4.9</b>
                         </span>
                         <span style={{ color: '#166534', fontWeight: 800, backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '6px' }}>
-                          Start OTP: {order.otp || '4821'}
+                          Start OTP: {order.otp || '—'}
                         </span>
                       </div>
                     )}
@@ -738,13 +738,13 @@ export const CustomerOrdersScreen: React.FC<CustomerOrdersScreenProps> = ({
                   <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '8px' }}>
                     <div style={{ fontSize: '9px', color: '#D1EAE0' }}>Start OTP</div>
                     <div style={{ fontSize: '18px', fontWeight: 900, fontFamily: 'monospace', color: '#86EFAC', letterSpacing: '2px' }}>
-                      {selectedOrder.otp || '4821'}
+                      {selectedOrder.otp || '—'}
                     </div>
                   </div>
                   <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '6px', borderRadius: '8px' }}>
                     <div style={{ fontSize: '9px', color: '#D1EAE0' }}>Completion OTP</div>
                     <div style={{ fontSize: '18px', fontWeight: 900, fontFamily: 'monospace', color: '#FEF08A', letterSpacing: '2px' }}>
-                      {selectedOrder.completionOtp || '7394'}
+                      {selectedOrder.completionOtp || '—'}
                     </div>
                   </div>
                 </div>

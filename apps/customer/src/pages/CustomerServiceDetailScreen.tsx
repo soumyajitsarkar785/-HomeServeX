@@ -1467,7 +1467,7 @@ export const CustomerServiceDetailScreen: React.FC<CustomerServiceDetailScreenPr
             >
               <div style={{ fontSize: '11px', color: '#166534', fontWeight: 700 }}>START SERVICE OTP</div>
               <div style={{ fontSize: '20px', fontWeight: 900, color: '#15803D', letterSpacing: '3px', marginTop: '2px' }}>
-                {confirmedOrder?.otp || '4821'}
+                {confirmedOrder?.otp || '—'}
               </div>
               <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>
                 Share this with your specialist upon arrival
