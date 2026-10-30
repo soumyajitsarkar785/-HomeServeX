@@ -2,7 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../lib/prisma.js';
 import { authenticate, requireRole } from '../../middleware/auth.js';
-import { activeCustomerOtps } from '../bookings/bookings.routes.js';
+import { getOrCreateCustomerOtp } from '../bookings/bookings.routes.js';
 
 export const servicesRouter = Router();
 
@@ -896,15 +896,9 @@ async function ensureCatalog() {
         },
       });
 
-      // Start OTP: 4821
-      const otpHash4821 = await bcrypt.hash('4821', 10);
-      const otpExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      await prisma.bookingOtp.deleteMany({ where: { bookingId: b1.id } });
-      await prisma.bookingOtp.create({
-        data: { bookingId: b1.id, purpose: 'START_SERVICE', otpHash: otpHash4821, expiresAt: otpExpires },
-      });
-      activeCustomerOtps.set(`${b1.id}_START_SERVICE`, { otp: '4821', purpose: 'START_SERVICE', expiresAt: otpExpires });
-      activeCustomerOtps.set(`${b1.id}_COMPLETE_SERVICE`, { otp: '7394', purpose: 'COMPLETE_SERVICE', expiresAt: otpExpires });
+      // Generate and persist random customer OTPs (Zero reference derivation / zero constant fallbacks)
+      await getOrCreateCustomerOtp(b1.id, 'START_SERVICE');
+      await getOrCreateCustomerOtp(b1.id, 'COMPLETE_SERVICE');
 
       // 2. #HSX123455: Priya Das | Washing Machine | ₹249 | Completed | 10 Mar 2025
       await prisma.booking.upsert({

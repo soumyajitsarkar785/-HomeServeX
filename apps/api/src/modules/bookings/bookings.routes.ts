@@ -626,8 +626,8 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80',
           technician: 'Amit Singh',
           address: '221B Baker Street, London, NW1 6AE',
-          otp: '5512',
-          completionOtp: '8910',
+          otp: isPartner ? undefined : '5512',
+          completionOtp: isPartner ? undefined : '8910',
         },
         {
           id: '#HSX-REF44120-9C114',
@@ -641,8 +641,8 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           imageUrl: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=400&q=80',
           technician: 'Suresh Das',
           address: '221B Baker Street, London, NW1 6AE',
-          otp: '3201',
-          completionOtp: '9044',
+          otp: isPartner ? undefined : '3201',
+          completionOtp: isPartner ? undefined : '9044',
         },
         {
           id: '#HSX-WSH31908-7D339',
@@ -656,8 +656,8 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=400&q=80',
           technician: 'Rahul Mehta',
           address: '221B Baker Street, London, NW1 6AE',
-          otp: '6712',
-          completionOtp: '4410',
+          otp: isPartner ? undefined : '6712',
+          completionOtp: isPartner ? undefined : '4410',
         },
       ] : []),
       ...(!hasCancelled ? [
@@ -673,8 +673,8 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           imageUrl: 'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?auto=format&fit=crop&w=400&q=80',
           technician: 'Unassigned',
           address: '221B Baker Street, London, NW1 6AE',
-          otp: '1102',
-          completionOtp: '3349',
+          otp: isPartner ? undefined : '1102',
+          completionOtp: isPartner ? undefined : '3349',
         },
       ] : []),
     ];
@@ -1328,14 +1328,17 @@ bookingsRouter.get('/:id/track', authenticate, async (req: AuthenticatedRequest,
       }
     }
 
+    const activeAssignment = booking.assignments?.find((a: any) => a.status === 'ACCEPTED') || booking.assignments?.[0];
+    const dbProvider = activeAssignment?.provider;
+
     const assignedProvider = {
-      id: booking.assignedProviderId || 'pro-ramesh-1',
-      name: 'Ramesh Kumar',
-      phone: '+91 98201 98765',
-      rating: 4.9,
-      completedJobs: 428,
+      id: dbProvider?.id || booking.assignedProviderId || 'pro-ramesh-1',
+      name: dbProvider?.user?.name || 'Ramesh Kumar',
+      phone: dbProvider?.user?.phone || '+91 98201 98765',
+      rating: dbProvider?.ratingAverage || 4.9,
+      completedJobs: dbProvider?.completedJobsCount || 428,
       experienceYears: 7,
-      avatarUrl: '/assets/hero-technician.jpg',
+      avatarUrl: dbProvider?.user?.avatarUrl || '/assets/hero-technician.jpg',
       specialization: booking.service?.category?.name ? `Senior ${booking.service.category.name} Specialist` : 'Senior Certified Technician',
       vehicle: 'Hero Electric (MH 02 CD 4821)',
       etaMinutes: booking.status === 'PROVIDER_EN_ROUTE' ? 14 : booking.status === 'ASSIGNED' ? 18 : booking.status === 'ARRIVED' ? 0 : 15,
