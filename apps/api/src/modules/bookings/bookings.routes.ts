@@ -481,9 +481,25 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
 
     const isPartner = req.headers['x-role'] === 'PROVIDER' || req.headers['x-app'] === 'partner' || req.user?.role === 'PROVIDER';
 
+    let providerProfileId: string | undefined;
     if (isPartner) {
-      // Providers see both available incoming requests and assigned/active bookings
-      where = {};
+      // Restrict provider query: only bookings assigned to this provider OR open/searchable bookings.
+      // An unassigned provider must NOT see full address records of other customers' bookings.
+      const pp = await prisma.providerProfile.findUnique({ where: { userId: req.user!.id } });
+      providerProfileId = pp?.id;
+      if (pp) {
+        // Show assigned bookings + open bookings (PENDING / SEARCHING_PROVIDER) for dispatch awareness
+        where = {
+          OR: [
+            { assignedProviderId: pp.id },
+            { status: { in: ['PENDING', 'SEARCHING_PROVIDER'] } },
+          ],
+        };
+      } else {
+        // Provider profile not yet created — return empty
+        res.json({ success: true, data: [], meta: { page, limit, total: 0, totalPages: 0 } });
+        return;
+      }
     } else if (req.user?.role === 'CUSTOMER') {
       const cp = await prisma.customerProfile.findUnique({ where: { userId: req.user.id } });
       if (cp) {
@@ -553,22 +569,31 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
       const refClean = b.referenceNumber.startsWith('#') ? b.referenceNumber : `#${b.referenceNumber}`;
       const defaultImg = 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80';
 
+      // Build display address by comparing normalized components (not substrings).
+      // Substring-check like street.includes(city) incorrectly suppresses "Delhi" when
+      // street is "Delhi Road". Instead compare the trimmed/lowercased component tokens.
       let cleanAddress = 'Salt Lake Sector V, Kolkata, WB 700091';
       if (b.address?.streetAddress) {
-        cleanAddress = b.address.streetAddress.trim();
-        const city = b.address.city?.trim();
-        const state = b.address.state?.trim();
-        const pincode = b.address.postalCode?.trim();
+        const street  = b.address.streetAddress.trim();
+        const city    = b.address.city?.trim() ?? '';
+        const state   = b.address.state?.trim() ?? '';
+        const pincode = b.address.postalCode?.trim() ?? '';
 
-        if (city && !cleanAddress.toLowerCase().includes(city.toLowerCase())) {
-          cleanAddress += `, ${city}`;
-        }
-        if (state && !cleanAddress.toLowerCase().includes(state.toLowerCase())) {
-          cleanAddress += `, ${state}`;
-        }
-        if (pincode && !cleanAddress.includes(pincode)) {
-          cleanAddress += ` ${pincode}`;
-        }
+        // Tokenise the street into lowercase words for exact-component matching
+        const streetTokens = new Set(street.toLowerCase().split(/[\s,]+/).filter(Boolean));
+        const cityTokens   = city   ? city.toLowerCase().split(/[\s,]+/).filter(Boolean)  : [];
+        const stateTokens  = state  ? state.toLowerCase().split(/[\s,]+/).filter(Boolean) : [];
+
+        // A component is "already present" only when ALL of its tokens appear in the street
+        const cityAlreadyPresent  = cityTokens.length  > 0 && cityTokens.every(t  => streetTokens.has(t));
+        const stateAlreadyPresent = stateTokens.length > 0 && stateTokens.every(t => streetTokens.has(t));
+
+        const parts: string[] = [street];
+        if (city   && !cityAlreadyPresent)  parts.push(city);
+        if (state  && !stateAlreadyPresent) parts.push(state);
+        if (pincode) parts.push(pincode);
+
+        cleanAddress = parts.join(', ');
       }
       cleanAddress = cleanAddress.replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim();
 
@@ -598,6 +623,15 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
         ? 'Searching for Specialist...'
         : (assignedName || 'Senior Certified Specialist');
 
+      // Determine whether this provider is assigned to this booking
+      const isAssignedProvider = isPartner && providerProfileId && b.assignedProviderId === providerProfileId;
+
+      // addressDetails: full record for customers/admins; for providers only when they are the assigned provider.
+      // Unassigned providers receive only the sanitised display string — never coordinates or customer linkage.
+      const addressDetails = (!isPartner || isAssignedProvider)
+        ? b.address
+        : undefined;
+
       return {
         id: refClean,
         bookingId: b.id,
@@ -616,7 +650,7 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
         technician,
         assignedProviderId: b.assignedProviderId,
         address: cleanAddress,
-        addressDetails: b.address,
+        addressDetails,
         otp: orderStartOtp,
         completionOtp: orderCompOtp,
         currentEtaMinutes: statusLabel === 'Arrived' ? 0 : (b.currentEtaMinutes || (statusLabel === 'On the way' ? 12 : undefined)),
