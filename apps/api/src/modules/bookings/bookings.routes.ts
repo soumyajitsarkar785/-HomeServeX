@@ -571,7 +571,8 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
 
       // Build display address by comparing normalized components (not substrings).
       // Substring-check like street.includes(city) incorrectly suppresses "Delhi" when
-      // street is "Delhi Road". Instead compare the trimmed/lowercased component tokens.
+      // street is "Delhi Road" — the city/state must be an exact comma-delimited component,
+      // not just any substring of a longer field.
       let cleanAddress = 'Salt Lake Sector V, Kolkata, WB 700091';
       if (b.address?.streetAddress) {
         const street  = b.address.streetAddress.trim();
@@ -579,19 +580,17 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
         const state   = b.address.state?.trim() ?? '';
         const pincode = b.address.postalCode?.trim() ?? '';
 
-        // Tokenise the street into lowercase words for exact-component matching
-        const streetTokens = new Set(street.toLowerCase().split(/[\s,]+/).filter(Boolean));
-        const cityTokens   = city   ? city.toLowerCase().split(/[\s,]+/).filter(Boolean)  : [];
-        const stateTokens  = state  ? state.toLowerCase().split(/[\s,]+/).filter(Boolean) : [];
-
-        // A component is "already present" only when ALL of its tokens appear in the street
-        const cityAlreadyPresent  = cityTokens.length  > 0 && cityTokens.every(t  => streetTokens.has(t));
-        const stateAlreadyPresent = stateTokens.length > 0 && stateTokens.every(t => streetTokens.has(t));
+        // Split the street into its comma-separated segments and normalise each one.
+        // A component is considered "already included" only when one of those segments
+        // matches the component exactly — not as an arbitrary substring.
+        const streetSegments = street.split(',').map(s => s.trim().toLowerCase());
+        const exactMatch = (component: string) =>
+          component !== '' && streetSegments.some(seg => seg === component.toLowerCase());
 
         const parts: string[] = [street];
-        if (city   && !cityAlreadyPresent)  parts.push(city);
-        if (state  && !stateAlreadyPresent) parts.push(state);
-        if (pincode) parts.push(pincode);
+        if (city    && !exactMatch(city))    parts.push(city);
+        if (state   && !exactMatch(state))   parts.push(state);
+        if (pincode && !exactMatch(pincode)) parts.push(pincode);
 
         cleanAddress = parts.join(', ');
       }
