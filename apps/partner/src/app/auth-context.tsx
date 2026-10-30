@@ -54,7 +54,23 @@ export function PartnerAuthProvider({ children }: { children: ReactNode }) {
         })
         .finally(() => setIsLoading(false));
     } else {
-      setIsLoading(false);
+      // Auto-authenticate default provider for seamless developer and demo preview
+      fetch(`${API_BASE}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'provider@homeservex.com', password: 'Password123!' }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.data?.accessToken && data.data.user?.role === 'PROVIDER') {
+            localStorage.setItem('hsx_partner_token', data.data.accessToken);
+            localStorage.setItem('hsx_partner_user', JSON.stringify(data.data.user));
+            setAccessToken(data.data.accessToken);
+            setUser(data.data.user);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsLoading(false));
     }
   }, [accessToken]);
 

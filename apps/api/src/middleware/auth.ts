@@ -12,7 +12,7 @@ export interface AuthenticatedRequest extends Request {
 
 export function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader) {
     res.status(401).json({
       success: false,
       error: { code: 'UNAUTHORIZED', message: 'Authentication token required' },
@@ -20,11 +20,18 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
     return;
   }
 
-  const token = authHeader.slice(7);
+  const [scheme, token, ...extra] = authHeader.split(' ');
+  if (scheme !== 'Bearer' || !token || extra.length > 0) {
+    res.status(401).json({
+      success: false,
+      error: { code: 'INVALID_TOKEN', message: 'Invalid authentication token' },
+    });
+    return;
+  }
+
+  let decoded: string | jwt.JwtPayload;
   try {
-    const decoded = jwt.verify(token, config.jwtAccessSecret) as { id: string; role: string; email: string };
-    req.user = decoded;
-    next();
+    decoded = jwt.verify(token, config.jwtAccessSecret);
   } catch {
     res.status(401).json({
       success: false,
@@ -32,17 +39,42 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
     });
     return;
   }
+
+  if (
+    typeof decoded === 'string'
+    || typeof decoded.id !== 'string'
+    || typeof decoded.role !== 'string'
+    || typeof decoded.email !== 'string'
+  ) {
+    res.status(401).json({
+      success: false,
+      error: { code: 'INVALID_TOKEN', message: 'Invalid authentication token' },
+    });
+    return;
+  }
+
+  req.user = { id: decoded.id, role: decoded.role, email: decoded.email };
+  next();
 }
 
 export function requireRole(...roles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      });
+      return;
+    }
+
+    if (!roles.includes(req.user.role)) {
       res.status(403).json({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Insufficient permissions' },
       });
       return;
     }
+
     next();
   };
 }

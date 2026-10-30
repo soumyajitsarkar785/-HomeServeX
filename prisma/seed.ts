@@ -348,7 +348,7 @@ async function main() {
         isPopular: svc.isPopular,
         imageUrl: svc.imageUrl,
         isActive: true,
-      },
+      } as any,
       create: {
         categoryId,
         name: svc.name,
@@ -363,11 +363,11 @@ async function main() {
         isPopular: svc.isPopular,
         imageUrl: svc.imageUrl,
         isActive: true,
-      },
+      } as any,
     });
   }
 
-  // 4. Seed Membership Plans & Settings
+  // 4. Seed Customer Membership Plans & Settings
   await prisma.platformSetting.upsert({
     where: { key: 'MEMBERSHIP_PLANS' },
     update: {
@@ -415,6 +415,90 @@ async function main() {
       description: 'Active customer membership tier configurations',
     },
   });
+
+  // 5. Seed Enterprise Provider Premium Subscription Plans (0% Commission Tier)
+  const providerPlans = [
+    {
+      slug: 'monthly-premium',
+      name: 'Monthly Premium',
+      description: 'Zero commission guarantee on every completed order for 30 days.',
+      pricePaise: 29900, // ₹299
+      durationDays: 30,
+      commissionRatePercent: 0.0,
+      badge: 'PREMIUM_ZERO_COMMISSION',
+      benefits: JSON.stringify([
+        '0% Platform Commission on all orders',
+        'Keep 100% of customer service payment',
+        'Premium Specialist badge on profile',
+        'Instant wallet settlements',
+        'Dedicated partner support line',
+      ]),
+      isActive: true,
+      isPopular: false,
+      displayOrder: 1,
+    },
+    {
+      slug: 'quarterly-premium',
+      name: 'Quarterly Premium',
+      description: 'Best value! 90 days of 100% earnings retention with zero commission.',
+      pricePaise: 79900, // ₹799
+      durationDays: 90,
+      commissionRatePercent: 0.0,
+      badge: 'MOST_POPULAR',
+      benefits: JSON.stringify([
+        '0% Platform Commission on all orders',
+        'Keep 100% of customer service payment',
+        'Verified Premium Specialist badge',
+        'Priority wallet withdrawal processing',
+        'Save ₹98 compared to monthly plan',
+      ]),
+      isActive: true,
+      isPopular: true,
+      displayOrder: 2,
+    },
+    {
+      slug: 'yearly-premium',
+      name: 'Yearly Premium',
+      description: 'Maximum annual savings! Full 365 days of zero commission coverage.',
+      pricePaise: 249900, // ₹2,499
+      durationDays: 365,
+      commissionRatePercent: 0.0,
+      badge: 'BEST_VALUE',
+      benefits: JSON.stringify([
+        '0% Platform Commission all year long',
+        'Keep 100% of customer service payment',
+        'Gold Verified Specialist status',
+        'Same-day bank settlement payouts',
+        'Save over ₹1,089 annually',
+      ]),
+      isActive: true,
+      isPopular: false,
+      displayOrder: 3,
+    },
+  ];
+
+  for (const plan of providerPlans) {
+    await prisma.subscriptionPlan.upsert({
+      where: { slug: plan.slug },
+      update: plan,
+      create: plan,
+    });
+  }
+
+  // 6. Ensure existing providers have initialized wallets
+  const existingProviders = await prisma.providerProfile.findMany();
+  for (const pro of existingProviders) {
+    await prisma.providerWallet.upsert({
+      where: { providerId: pro.id },
+      update: {},
+      create: {
+        providerId: pro.id,
+        balancePaise: 245000, // ₹2,450 default seed balance
+        totalEarnedPaise: 329000,
+        totalCommissionPaidPaise: 49350,
+      },
+    });
+  }
 
   console.log('HomeServeX production database seeded successfully.');
 }

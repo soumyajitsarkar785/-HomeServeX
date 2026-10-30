@@ -869,7 +869,7 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Proper Interactive Notification Bell (Cart button removed per user request) */}
+            {/* Right: Interactive Notification Bell */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 onClick={() => setIsNotificationOpen(true)}
@@ -2077,10 +2077,7 @@ export const HomePage: React.FC = () => {
 
         {/* Tab 3: Offers */}
         <button
-          onClick={() => {
-            setActiveBottomTab('offers');
-            alert('HomeServeX Offers: Use code FIRST50 for ₹100 instant discount on AC deep cleaning!');
-          }}
+          onClick={() => navigate('/offers')}
           style={{
             flex: 1,
             background: 'none',

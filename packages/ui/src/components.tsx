@@ -20,41 +20,59 @@ export const Button: React.FC<ButtonProps> = ({
   rightIcon,
   disabled,
   style,
+  onMouseEnter,
+  onMouseLeave,
+  onMouseDown,
+  onMouseUp,
   ...props
 }) => {
+  const [isHovered, setIsHovered] = React.useState(false);
+  const [isActive, setIsActive] = React.useState(false);
+
   const getVariantStyles = (): React.CSSProperties => {
     switch (variant) {
       case 'secondary':
         return {
-          backgroundColor: 'var(--color-mint-light, #EAF6EF)',
-          color: 'var(--color-primary, #145C43)',
-          border: '1px solid #D1EADE',
+          backgroundColor: isHovered ? '#DCFCE7' : '#EAF6EF',
+          color: '#145C43',
+          border: '1px solid #BBF7D0',
+          boxShadow: isHovered ? '0 2px 8px rgba(20, 92, 67, 0.12)' : 'none',
         };
       case 'outline':
         return {
-          backgroundColor: 'transparent',
-          color: 'var(--color-text, #17211C)',
-          border: '1px solid var(--color-border, #E4EAE5)',
+          backgroundColor: isHovered ? '#F8FAFC' : 'transparent',
+          color: '#0F172A',
+          border: isHovered ? '1px solid #CBD5E1' : '1px solid #E2E8F0',
+          boxShadow: isHovered ? '0 2px 6px rgba(0,0,0,0.04)' : 'none',
         };
       case 'danger':
         return {
-          backgroundColor: 'var(--color-danger, #D64545)',
+          background: isHovered
+            ? 'linear-gradient(180deg, #EF4444 0%, #DC2626 100%)'
+            : 'linear-gradient(180deg, #DC2626 0%, #B91C1C 100%)',
           color: '#FFFFFF',
           border: 'none',
+          boxShadow: isHovered
+            ? '0 6px 16px rgba(220, 38, 38, 0.35)'
+            : '0 2px 8px rgba(220, 38, 38, 0.2)',
         };
       case 'ghost':
         return {
-          backgroundColor: 'transparent',
-          color: 'var(--color-text-secondary, #6B756F)',
+          backgroundColor: isHovered ? '#F1F5F9' : 'transparent',
+          color: isHovered ? '#0F172A' : '#64748B',
           border: 'none',
         };
       case 'primary':
       default:
         return {
-          backgroundColor: 'var(--color-primary, #145C43)',
+          background: isHovered
+            ? 'linear-gradient(180deg, #16865D 0%, #0E3E2F 100%)'
+            : 'linear-gradient(180deg, #145C43 0%, #0B3326 100%)',
           color: '#FFFFFF',
           border: 'none',
-          boxShadow: 'var(--shadow-xs)',
+          boxShadow: isHovered
+            ? '0 6px 18px rgba(14, 62, 47, 0.32)'
+            : '0 2px 10px rgba(14, 62, 47, 0.2)',
         };
     }
   };
@@ -62,28 +80,46 @@ export const Button: React.FC<ButtonProps> = ({
   const getSizeStyles = (): React.CSSProperties => {
     switch (size) {
       case 'sm':
-        return { padding: '7px 14px', fontSize: '13px', height: '34px' };
+        return { padding: '6px 14px', fontSize: '12.5px', height: '34px', borderRadius: '18px' };
       case 'lg':
-        return { padding: '14px 28px', fontSize: '16px', height: '48px', fontWeight: 700 };
+        return { padding: '12px 28px', fontSize: '15px', height: '48px', fontWeight: 700, borderRadius: '24px' };
       case 'md':
       default:
-        return { padding: '10px 20px', fontSize: '14px', height: '40px' };
+        return { padding: '9px 20px', fontSize: '13.5px', height: '40px', borderRadius: '20px' };
     }
   };
 
   return (
     <button
       disabled={disabled || isLoading}
+      onMouseEnter={(e) => {
+        setIsHovered(true);
+        if (onMouseEnter) onMouseEnter(e);
+      }}
+      onMouseLeave={(e) => {
+        setIsHovered(false);
+        setIsActive(false);
+        if (onMouseLeave) onMouseLeave(e);
+      }}
+      onMouseDown={(e) => {
+        setIsActive(true);
+        if (onMouseDown) onMouseDown(e);
+      }}
+      onMouseUp={(e) => {
+        setIsActive(false);
+        if (onMouseUp) onMouseUp(e);
+      }}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
         gap: '8px',
-        fontWeight: 600,
-        borderRadius: 'var(--radius-control, 10px)',
+        fontWeight: 700,
+        letterSpacing: '-0.2px',
         cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
-        opacity: disabled || isLoading ? 0.65 : 1,
-        transition: 'all var(--transition-fast, 0.15s ease-in-out)',
+        opacity: disabled || isLoading ? 0.6 : 1,
+        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+        transform: isActive && !disabled && !isLoading ? 'scale(0.97)' : isHovered && !disabled && !isLoading ? 'translateY(-1px)' : 'none',
         whiteSpace: 'nowrap',
         boxSizing: 'border-box',
         ...getVariantStyles(),
@@ -93,7 +129,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading ? (
-        <Spinner size="sm" color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : 'var(--color-primary, #145C43)'} />
+        <Spinner size="sm" color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : '#145C43'} />
       ) : (
         leftIcon
       )}

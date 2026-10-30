@@ -10,7 +10,7 @@ export const authRouter = Router();
 
 let demoUsersEnsured = false;
 export async function ensureDemoUsers() {
-  if (demoUsersEnsured) return;
+  if (config.env !== 'development' || demoUsersEnsured) return;
   try {
     const passwordHash = await bcrypt.hash('Password123!', 10);
 
@@ -142,7 +142,9 @@ export async function ensureDemoUsers() {
     console.error('[HomeServeX] Demo user init error:', err);
   }
 }
-ensureDemoUsers();
+if (config.env === 'development') {
+  void ensureDemoUsers();
+}
 
 function generateTokens(userId: string, role: string, email: string) {
   const accessToken = jwt.sign({ id: userId, role, email }, config.jwtAccessSecret, { expiresIn: '15m' });

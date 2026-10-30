@@ -52,11 +52,11 @@ export const verifyOtpSchema = z.object({
   otp: z.string().optional(),
 }).transform(val => {
   const code = (val.otpCode || val.otp || '').trim();
-  if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+  if (!code || (code.length !== 4 && code.length !== 6) || !/^\d{4,6}$/.test(code)) {
     throw new z.ZodError([
       {
         code: z.ZodIssueCode.custom,
-        message: 'OTP must be exactly 6 digits numeric',
+        message: 'OTP must be 4 or 6 numeric digits',
         path: ['otpCode'],
       },
     ]);
@@ -73,6 +73,9 @@ export const verifyOtpSchema = z.object({
 export const updateProviderLocationSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  accuracyMeters: z.number().optional(),
+  speedKmh: z.number().optional(),
+  headingDegrees: z.number().optional(),
 });
 
 // Review Schema

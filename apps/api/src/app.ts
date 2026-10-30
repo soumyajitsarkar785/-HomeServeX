@@ -10,6 +10,7 @@ import { customerRouter } from './modules/customers/customers.routes.js';
 import { providerRouter } from './modules/providers/providers.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { paymentsRouter } from './modules/payments/payments.routes.js';
+import { isCorsOriginAllowed } from './middleware/corsOrigin.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -58,12 +59,7 @@ export function createApp() {
 
   // Basic Security & Parsing Middleware
   app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || config.corsAllowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true);
-    },
+    origin: (origin, callback) => callback(null, isCorsOriginAllowed(origin, config.corsAllowedOrigins)),
     credentials: true,
   }));
   app.use(express.json({ limit: '15mb' }));

@@ -1,6 +1,8 @@
 import { Router, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../../lib/prisma.js';
 import { authenticate, requireRole } from '../../middleware/auth.js';
+import { activeCustomerOtps } from '../bookings/bookings.routes.js';
 
 export const servicesRouter = Router();
 
@@ -114,6 +116,13 @@ async function ensureCatalog() {
         description: 'Magnetron heating repair, high-voltage diode check, and turntable motor replacement.',
         iconUrl: '📻',
         displayOrder: 8,
+      },
+      {
+        slug: 'geyser',
+        name: 'Geyser Service',
+        description: 'Instant & storage geyser heating element replacement, thermostat repair, and scaling flush.',
+        iconUrl: '🔥',
+        displayOrder: 9,
       },
     ];
 
@@ -508,6 +517,22 @@ async function ensureCatalog() {
           { name: 'Turntable Motor Roller Alignment', priceDeltaPaise: 9900, durationDeltaMinutes: 10 },
         ],
       },
+      // ── Geyser ──
+      {
+        categorySlug: 'geyser',
+        slug: 'geyser-service',
+        name: 'Geyser Service & Repair',
+        description: 'Instant & storage geyser heating element replacement, thermostat calibration, hard-water scaling flush, and safety valve check.',
+        basePricePaise: 24900,
+        strikethroughPricePaise: 39900,
+        estimatedDurationMinutes: 30,
+        rating: 4.8,
+        reviewCount: 780,
+        badge: 'Express 30m',
+        isPopular: true,
+        imageUrl: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80',
+        options: [],
+      },
     ];
 
     for (const svc of servicesData) {
@@ -620,6 +645,341 @@ async function ensureCatalog() {
       },
     });
 
+    // ── 5. Seed Authoritative Promotional Offers matching 19 Reference Screens ──
+    const defaultOffers = [
+      {
+        id: 'offer-1',
+        title: 'AC Service Discount',
+        description: 'Get ₹200 OFF on AC service',
+        discount: '₹200',
+        discountType: 'FLAT',
+        discountValue: 200,
+        minOrderRupees: 999,
+        validTill: '31 Mar 2025',
+        status: 'Active',
+        category: 'AC',
+        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-2',
+        title: 'Flat 15% OFF',
+        description: 'on All Appliance Repairs',
+        discount: '15%',
+        discountType: 'PERCENTAGE',
+        discountValue: 15,
+        minOrderRupees: 499,
+        validTill: '31 Mar 2025',
+        status: 'Active',
+        category: 'Appliances',
+        imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-3',
+        title: 'Free Inspection',
+        description: 'on First Booking',
+        discount: '100%',
+        discountType: 'PERCENTAGE',
+        discountValue: 100,
+        minOrderRupees: 0,
+        validTill: '31 Mar 2025',
+        status: 'Active',
+        category: 'All',
+        imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-4',
+        title: 'Plumbing Discount',
+        description: 'Get ₹150 OFF on plumbing repairs',
+        discount: '₹150',
+        discountType: 'FLAT',
+        discountValue: 150,
+        minOrderRupees: 599,
+        validTill: '30 Apr 2025',
+        status: 'Active',
+        category: 'Plumbing',
+        imageUrl: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-5',
+        title: 'Cleaning Offer',
+        description: 'Flat 10% discount on deep cleaning',
+        discount: '10%',
+        discountType: 'PERCENTAGE',
+        discountValue: 10,
+        minOrderRupees: 699,
+        validTill: '30 Apr 2025',
+        status: 'Active',
+        category: 'Cleaning',
+        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400&q=80',
+      },
+    ];
+
+    await prisma.platformSetting.upsert({
+      where: { key: 'PROMOTIONAL_OFFERS' },
+      update: {},
+      create: {
+        key: 'PROMOTIONAL_OFFERS',
+        value: JSON.stringify(defaultOffers),
+        description: 'Authoritative promotional offers matching customer and admin reference screens',
+      },
+    });
+
+    // ── 6. Seed Authoritative Users, Profiles, Addresses, and 5 Bookings ──
+    const passwordHash = await bcrypt.hash('Password@123', 10);
+
+    // Admin: Soumyajit Sarkar
+    await prisma.user.upsert({
+      where: { email: 'admin@homeservex.com' },
+      update: { name: 'Soumyajit Sarkar', role: 'ADMIN', status: 'ACTIVE' },
+      create: {
+        email: 'admin@homeservex.com',
+        phone: '+91 99999 00001',
+        passwordHash,
+        name: 'Soumyajit Sarkar',
+        role: 'ADMIN',
+        status: 'ACTIVE',
+      },
+    });
+
+    // Providers: Rohit Kumar, Amit Singh, Suresh Das, Pooja Roy, Rahul Mehta
+    const rohitUser = await prisma.user.upsert({
+      where: { email: 'rohit@homeservex.com' },
+      update: { name: 'Rohit Kumar', phone: '+91 98765 43210', role: 'PROVIDER', status: 'ACTIVE' },
+      create: {
+        email: 'rohit@homeservex.com',
+        phone: '+91 98765 43210',
+        passwordHash,
+        name: 'Rohit Kumar',
+        role: 'PROVIDER',
+        status: 'ACTIVE',
+      },
+    });
+
+    const rohitProfile = await prisma.providerProfile.upsert({
+      where: { userId: rohitUser.id },
+      update: {
+        skills: JSON.stringify(['ac-servicing', 'appliances']),
+        verificationStatus: 'APPROVED',
+        availabilityStatus: 'ONLINE',
+        ratingAverage: 4.8,
+        totalRatingsCount: 1200,
+        completedJobsCount: 248,
+        bio: 'Certified AC Technician with 5 years experience',
+      },
+      create: {
+        userId: rohitUser.id,
+        skills: JSON.stringify(['ac-servicing', 'appliances']),
+        verificationStatus: 'APPROVED',
+        availabilityStatus: 'ONLINE',
+        ratingAverage: 4.8,
+        totalRatingsCount: 1200,
+        completedJobsCount: 248,
+        bio: 'Certified AC Technician with 5 years experience',
+      },
+    });
+
+    const providersData = [
+      { email: 'amit.singh@homeservex.com', phone: '+91 87654 32109', name: 'Amit Singh', rating: 4.6, count: 180, skill: 'washing-machine', city: 'Howrah' },
+      { email: 'suresh.das@homeservex.com', phone: '+91 76543 21098', name: 'Suresh Das', rating: 4.7, count: 215, skill: 'refrigerator', city: 'Durgapur' },
+      { email: 'pooja.roy@homeservex.com', phone: '+91 65432 10987', name: 'Pooja Roy', rating: 4.5, count: 160, skill: 'cleaning', city: 'Siliguri' },
+      { email: 'rahul.mehta@homeservex.com', phone: '+91 54321 09876', name: 'Rahul Mehta', rating: 4.3, count: 130, skill: 'plumbing', city: 'Kharagpur' },
+    ];
+
+    for (const p of providersData) {
+      const u = await prisma.user.upsert({
+        where: { email: p.email },
+        update: { name: p.name, phone: p.phone, role: 'PROVIDER', status: 'ACTIVE' },
+        create: { email: p.email, phone: p.phone, passwordHash, name: p.name, role: 'PROVIDER', status: 'ACTIVE' },
+      });
+      await prisma.providerProfile.upsert({
+        where: { userId: u.id },
+        update: { skills: JSON.stringify([p.skill]), verificationStatus: 'APPROVED', availabilityStatus: 'ONLINE', ratingAverage: p.rating, completedJobsCount: p.count },
+        create: { userId: u.id, skills: JSON.stringify([p.skill]), verificationStatus: 'APPROVED', availabilityStatus: 'ONLINE', ratingAverage: p.rating, completedJobsCount: p.count },
+      });
+    }
+
+    // Customers: Soumyajit Sarkar, Rahul Sharma, Priya Das, Amit Roy, Sneha Paul, Suman Ghosh
+    const customersData = [
+      { email: 'soumyajit@gmail.com', name: 'Soumyajit Sarkar', phone: '+91 91234 56789' },
+      { email: 'rahul.sharma@gmail.com', name: 'Rahul Sharma', phone: '+91 98765 43201' },
+      { email: 'priya.das@gmail.com', name: 'Priya Das', phone: '+91 98765 43211' },
+      { email: 'amit.roy@gmail.com', name: 'Amit Roy', phone: '+91 98765 43212' },
+      { email: 'sneha.paul@gmail.com', name: 'Sneha Paul', phone: '+91 98765 43213' },
+      { email: 'suman.ghosh@gmail.com', name: 'Suman Ghosh', phone: '+91 98765 43214' },
+    ];
+
+    const customerMap = new Map<string, string>();
+    for (const c of customersData) {
+      try {
+        const u = await prisma.user.upsert({
+          where: { email: c.email },
+          update: { name: c.name, role: 'CUSTOMER', status: 'ACTIVE' },
+          create: { email: c.email, name: c.name, phone: c.phone, passwordHash, role: 'CUSTOMER', status: 'ACTIVE' },
+        });
+        const cp = await prisma.customerProfile.upsert({
+          where: { userId: u.id },
+          update: {},
+          create: { userId: u.id },
+        });
+        customerMap.set(c.email, cp.id);
+      } catch {
+        // Fallback find if already created with different phone
+        const existing = await prisma.user.findFirst({ where: { email: c.email } });
+        if (existing) {
+          const cp = await prisma.customerProfile.findUnique({ where: { userId: existing.id } });
+          if (cp) customerMap.set(c.email, cp.id);
+        }
+      }
+
+      const customerProfileId = customerMap.get(c.email);
+      if (customerProfileId) {
+        const existingAddr = await prisma.address.findFirst({ where: { customerId: customerProfileId, streetAddress: '2218 Baker Street' } });
+        if (!existingAddr) {
+          await prisma.address.create({
+            data: {
+              customerId: customerProfileId,
+              label: 'Home',
+              streetAddress: '2218 Baker Street',
+              landmark: 'Near Regent Park',
+              city: 'London',
+              state: 'London',
+              postalCode: 'NW1 6AE',
+              latitude: 51.5237,
+              longitude: -0.1585,
+              isDefault: true,
+            },
+          });
+        }
+      }
+    }
+
+    // Seed the 5 Authoritative Bookings
+    const addr = await prisma.address.findFirst({ where: { streetAddress: '2218 Baker Street' } });
+    const acService = await prisma.service.findFirst({ where: { slug: 'split-ac-regular-service' } });
+    const wmService = await prisma.service.findFirst({ where: { slug: 'washing-machine-overhaul' } });
+    const fridgeService = await prisma.service.findFirst({ where: { slug: 'fridge-cooling-diagnostics' } });
+    const microService = await prisma.service.findFirst({ where: { slug: 'microwave-heating-repair' } });
+    const roService = await prisma.service.findFirst({ where: { slug: 'ro-filter-service' } });
+
+    if (addr && acService && wmService && fridgeService && microService && roService) {
+      const rahulProfileId = customerMap.get('rahul.sharma@gmail.com') || customerMap.get('soumyajit@gmail.com')!;
+      const priyaProfileId = customerMap.get('priya.das@gmail.com') || rahulProfileId;
+      const amitProfileId = customerMap.get('amit.roy@gmail.com') || rahulProfileId;
+      const snehaProfileId = customerMap.get('sneha.paul@gmail.com') || rahulProfileId;
+      const sumanProfileId = customerMap.get('suman.ghosh@gmail.com') || rahulProfileId;
+
+      // 1. #HSX123456: Rahul Sharma | AC Service | ₹299 | On the way | 12 Mar 2025
+      const b1 = await prisma.booking.upsert({
+        where: { referenceNumber: 'HSX123456' },
+        update: {
+          status: 'PROVIDER_EN_ROUTE',
+          currentEtaMinutes: 12,
+          assignedProviderId: rohitProfile.id,
+          totalAmountPaise: 29900,
+          baseAmountPaise: 29900,
+          providerEarningsPaise: 29900,
+        },
+        create: {
+          referenceNumber: 'HSX123456',
+          customerId: rahulProfileId,
+          serviceId: acService.id,
+          addressId: addr.id,
+          scheduledSlot: new Date('2025-03-12T12:30:00Z'),
+          status: 'PROVIDER_EN_ROUTE',
+          currentEtaMinutes: 12,
+          assignedProviderId: rohitProfile.id,
+          baseAmountPaise: 29900,
+          totalAmountPaise: 29900,
+          providerEarningsPaise: 29900,
+          notes: 'Customer requested quick filter check',
+          createdAt: new Date('2025-03-12T10:12:00Z'),
+        },
+      });
+
+      // Start OTP: 4821
+      const otpHash4821 = await bcrypt.hash('4821', 10);
+      const otpExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await prisma.bookingOtp.deleteMany({ where: { bookingId: b1.id } });
+      await prisma.bookingOtp.create({
+        data: { bookingId: b1.id, purpose: 'START_SERVICE', otpHash: otpHash4821, expiresAt: otpExpires },
+      });
+      activeCustomerOtps.set(`${b1.id}_START_SERVICE`, { otp: '4821', purpose: 'START_SERVICE', expiresAt: otpExpires });
+      activeCustomerOtps.set(`${b1.id}_COMPLETE_SERVICE`, { otp: '7394', purpose: 'COMPLETE_SERVICE', expiresAt: otpExpires });
+
+      // 2. #HSX123455: Priya Das | Washing Machine | ₹249 | Completed | 10 Mar 2025
+      await prisma.booking.upsert({
+        where: { referenceNumber: 'HSX123455' },
+        update: { status: 'COMPLETED', paymentStatus: 'PAID', totalAmountPaise: 24900 },
+        create: {
+          referenceNumber: 'HSX123455',
+          customerId: priyaProfileId,
+          serviceId: wmService.id,
+          addressId: addr.id,
+          scheduledSlot: new Date('2025-03-10T11:15:00Z'),
+          status: 'COMPLETED',
+          paymentStatus: 'PAID',
+          baseAmountPaise: 24900,
+          totalAmountPaise: 24900,
+          providerEarningsPaise: 24900,
+          createdAt: new Date('2025-03-10T11:00:00Z'),
+        },
+      });
+
+      // 3. #HSX123454: Amit Roy | Refrigerator | ₹299 | Completed | 8 Mar 2025
+      await prisma.booking.upsert({
+        where: { referenceNumber: 'HSX123454' },
+        update: { status: 'COMPLETED', paymentStatus: 'PAID', totalAmountPaise: 29900 },
+        create: {
+          referenceNumber: 'HSX123454',
+          customerId: amitProfileId,
+          serviceId: fridgeService.id,
+          addressId: addr.id,
+          scheduledSlot: new Date('2025-03-08T09:40:00Z'),
+          status: 'COMPLETED',
+          paymentStatus: 'PAID',
+          baseAmountPaise: 29900,
+          totalAmountPaise: 29900,
+          providerEarningsPaise: 29900,
+          createdAt: new Date('2025-03-08T09:30:00Z'),
+        },
+      });
+
+      // 4. #HSX123453: Sneha Paul | Microwave Oven | ₹199 | Cancelled | 5 Mar 2025
+      await prisma.booking.upsert({
+        where: { referenceNumber: 'HSX123453' },
+        update: { status: 'CANCELLED', totalAmountPaise: 19900 },
+        create: {
+          referenceNumber: 'HSX123453',
+          customerId: snehaProfileId,
+          serviceId: microService.id,
+          addressId: addr.id,
+          scheduledSlot: new Date('2025-03-05T16:00:00Z'),
+          status: 'CANCELLED',
+          baseAmountPaise: 19900,
+          totalAmountPaise: 19900,
+          cancellationReason: 'Customer rescheduled travel plans',
+          createdAt: new Date('2025-03-05T15:00:00Z'),
+        },
+      });
+
+      // 5. #HSX123452: Suman Ghosh | Water Purifier | ₹249 | Pending | 2 Mar 2025
+      await prisma.booking.upsert({
+        where: { referenceNumber: 'HSX123452' },
+        update: { status: 'PENDING', totalAmountPaise: 24900 },
+        create: {
+          referenceNumber: 'HSX123452',
+          customerId: sumanProfileId,
+          serviceId: roService.id,
+          addressId: addr.id,
+          scheduledSlot: new Date('2025-03-02T10:00:00Z'),
+          status: 'PENDING',
+          baseAmountPaise: 24900,
+          totalAmountPaise: 24900,
+          createdAt: new Date('2025-03-02T09:50:00Z'),
+        },
+      });
+    }
+
     catalogEnsured = true;
     console.log('[HomeServeX] Catalog ensured and seeded with 22+ realistic production services.');
   } catch (err: any) {
@@ -661,6 +1021,93 @@ servicesRouter.get('/membership-plans', async (_req, res: Response) => {
       } catch {}
     }
     res.json({ success: true, data: plans });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || String(err) });
+  }
+});
+
+// GET /api/v1/services/banners — Public promotional banners for Customer App (customized by Admin)
+servicesRouter.get('/banners', async (_req, res: Response) => {
+  try {
+    const setting = await prisma.platformSetting.findUnique({
+      where: { key: 'PROMOTIONAL_BANNERS' },
+    });
+    const defaultBanners = [
+      {
+        id: 'banner-default-hero',
+        badge: '⚡ FAST. RELIABLE. TRUSTED.',
+        title: 'We fix it today,',
+        highlightTitle: 'so you can relax tomorrow.',
+        subtitle: 'Certified experts at your doorstep in as little as 30 minutes with upfront transparent pricing.',
+        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80',
+        ctaText: 'Book Service',
+        ctaTarget: '#recommended-section',
+        discountBadge: '10K+ Happy Customers',
+        isActive: true,
+        displayOrder: 1,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    let banners = defaultBanners;
+    if (setting?.value) {
+      try {
+        const parsed = JSON.parse(setting.value);
+        if (Array.isArray(parsed) && parsed.length > 0) banners = parsed;
+      } catch {}
+    }
+    res.json({ success: true, data: banners.filter((b: any) => b.isActive !== false) });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || String(err) });
+  }
+});
+
+// GET /api/v1/services/offers — Public promotional offers & coupons for Customer App (customized by Admin)
+servicesRouter.get('/offers', async (_req, res: Response) => {
+  try {
+    const setting = await prisma.platformSetting.findUnique({
+      where: { key: 'PROMOTIONAL_OFFERS' },
+    });
+    const defaultOffers = [
+      { id: 'offer-1', title: 'AC Service Discount', description: 'Get ₹200 OFF on AC service', discount: '₹200', discountType: 'FLAT', discountValue: 200, minOrder: 'Min. order ₹999', validity: 'Valid till 31 Mar 2025', status: 'Active', category: 'AC', code: 'AC200', imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80' },
+      { id: 'offer-2', title: 'Flat 15% OFF', description: 'on All Appliance Repairs', discount: '15%', discountType: 'PERCENTAGE', discountValue: 15, minOrder: 'Min. order ₹499', validity: 'Valid till 31 Mar 2025', status: 'Active', category: 'Appliances', code: 'FLAT15', imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=400&q=80' },
+      { id: 'offer-3', title: 'Free Inspection', description: 'on First Booking', discount: '100%', discountType: 'PERCENTAGE', discountValue: 100, minOrder: 'Zero minimum order', validity: 'Valid till 31 Mar 2025', status: 'Active', category: 'All', code: 'FREEINSPECT', imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80' },
+      { id: 'offer-4', title: 'Plumbing Discount', description: 'Get ₹150 OFF on plumbing repairs', discount: '₹150', discountType: 'FLAT', discountValue: 150, minOrder: 'Min. order ₹599', validity: 'Valid till 30 Apr 2025', status: 'Active', category: 'Plumbing', code: 'PLUMB150', imageUrl: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=400&q=80' },
+      { id: 'offer-5', title: 'Cleaning Offer', description: 'Flat 10% discount on deep cleaning', discount: '10%', discountType: 'PERCENTAGE', discountValue: 10, minOrder: 'Min. order ₹699', validity: 'Valid till 30 Apr 2025', status: 'Active', category: 'Cleaning', code: 'CLEAN10', imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400&q=80' },
+    ];
+    let offers = defaultOffers;
+    if (setting?.value) {
+      try {
+        const parsed = JSON.parse(setting.value);
+        if (Array.isArray(parsed) && parsed.length > 0) offers = parsed;
+      } catch {}
+    }
+    res.json({ success: true, data: offers.filter((o: any) => o.status === 'Active') });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || String(err) });
+  }
+});
+
+// GET /api/v1/services/config — Public business & platform configuration (Admin controlled)
+servicesRouter.get('/config', async (_req, res: Response) => {
+  try {
+    const setting = await prisma.platformSetting.findUnique({
+      where: { key: 'SYSTEM_SETTINGS' },
+    });
+    let config = {
+      platformName: 'HomeServeX',
+      supportEmail: 'support@homeservex.com',
+      supportPhone: '+91 1800 200 4821',
+      currency: 'INR (₹)',
+      timezone: 'Asia/Kolkata (IST)',
+      maintenanceMode: false,
+      taxRatePercent: 18,
+    };
+    if (setting?.value) {
+      try {
+        config = { ...config, ...JSON.parse(setting.value).system };
+      } catch {}
+    }
+    res.json({ success: true, data: config });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || String(err) });
   }
@@ -918,6 +1365,78 @@ servicesRouter.get('/', async (req, res: Response, next: NextFunction) => {
   }
 });
 
+// GET /api/v1/services/offers — Authoritative Special Offers & Coupon Codes matching Image 4
+servicesRouter.get('/offers', async (_req, res: Response) => {
+  try {
+    const authoritativeOffers = [
+      {
+        id: 'offer-1',
+        title: 'AC Service Discount',
+        description: 'Get ₹200 OFF on AC service',
+        minOrder: 'Min. order ₹999',
+        validity: 'Valid till 31 Mar 2025',
+        category: 'AC',
+        code: 'AC200',
+        discountType: 'FLAT',
+        discountPaise: 20000,
+        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-2',
+        title: 'Flat 15% OFF',
+        description: 'on All Appliance Repairs',
+        minOrder: 'Min. order ₹499',
+        validity: 'Valid till 31 Mar 2025',
+        category: 'Appliances',
+        code: 'FLAT15',
+        discountType: 'PERCENTAGE',
+        discountPercent: 15,
+        imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-3',
+        title: 'Free Inspection',
+        description: 'on First Booking',
+        minOrder: 'Zero minimum order',
+        validity: 'Valid till 31 Mar 2025',
+        category: 'Appliances',
+        code: 'FREEINSPECT',
+        discountType: 'FLAT',
+        discountPaise: 19900,
+        imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-4',
+        title: 'Deep Cleaning Special',
+        description: 'Get ₹300 OFF on Full Home Cleaning',
+        minOrder: 'Min. order ₹1499',
+        validity: 'Valid till 31 Mar 2025',
+        category: 'Cleaning',
+        code: 'CLEAN300',
+        discountType: 'FLAT',
+        discountPaise: 30000,
+        imageUrl: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        id: 'offer-5',
+        title: 'Water Purifier Filter Care',
+        description: 'Flat 20% OFF on RO Membrane & Filters',
+        minOrder: 'Min. order ₹599',
+        validity: 'Valid till 31 Mar 2025',
+        category: 'Appliances',
+        code: 'RO20',
+        discountType: 'PERCENTAGE',
+        discountPercent: 20,
+        imageUrl: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&w=400&q=80',
+      },
+    ];
+
+    res.json({ success: true, data: authoritativeOffers });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || String(err) });
+  }
+});
+
 // GET /api/v1/services/:id
 servicesRouter.get('/:id', async (req, res: Response, next: NextFunction) => {
   try {
@@ -1036,6 +1555,93 @@ servicesRouter.get('/banners', async (_req, res: Response, next: NextFunction) =
       } catch {}
     }
     res.json({ success: true, data: banners });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Public: GET /api/v1/services/offers
+servicesRouter.get('/offers', async (_req, res: Response, next: NextFunction) => {
+  try {
+    const setting = await prisma.platformSetting.findUnique({
+      where: { key: 'PROMOTIONAL_OFFERS' },
+    });
+    let offers = [];
+    if (setting?.value) {
+      try {
+        offers = JSON.parse(setting.value);
+      } catch {}
+    }
+    if (!offers || offers.length === 0) {
+      offers = [
+        {
+          id: 'offer-1',
+          title: 'AC Service Discount',
+          description: 'Get ₹200 OFF on AC service',
+          discount: '₹200',
+          discountType: 'FLAT',
+          discountValue: 200,
+          minOrderRupees: 999,
+          validTill: '31 Mar 2025',
+          status: 'Active',
+          category: 'AC',
+          imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80',
+        },
+        {
+          id: 'offer-2',
+          title: 'Flat 15% OFF',
+          description: 'on All Appliance Repairs',
+          discount: '15%',
+          discountType: 'PERCENTAGE',
+          discountValue: 15,
+          minOrderRupees: 499,
+          validTill: '31 Mar 2025',
+          status: 'Active',
+          category: 'Appliances',
+          imageUrl: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=400&q=80',
+        },
+        {
+          id: 'offer-3',
+          title: 'Free Inspection',
+          description: 'on First Booking',
+          discount: '100%',
+          discountType: 'PERCENTAGE',
+          discountValue: 100,
+          minOrderRupees: 0,
+          validTill: '31 Mar 2025',
+          status: 'Active',
+          category: 'All',
+          imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80',
+        },
+        {
+          id: 'offer-4',
+          title: 'Plumbing Discount',
+          description: 'Get ₹150 OFF on plumbing repairs',
+          discount: '₹150',
+          discountType: 'FLAT',
+          discountValue: 150,
+          minOrderRupees: 599,
+          validTill: '30 Apr 2025',
+          status: 'Active',
+          category: 'Plumbing',
+          imageUrl: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=400&q=80',
+        },
+        {
+          id: 'offer-5',
+          title: 'Cleaning Offer',
+          description: 'Flat 10% discount on deep cleaning',
+          discount: '10%',
+          discountType: 'PERCENTAGE',
+          discountValue: 10,
+          minOrderRupees: 699,
+          validTill: '30 Apr 2025',
+          status: 'Active',
+          category: 'Cleaning',
+          imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400&q=80',
+        },
+      ];
+    }
+    res.json({ success: true, data: offers });
   } catch (err) {
     next(err);
   }

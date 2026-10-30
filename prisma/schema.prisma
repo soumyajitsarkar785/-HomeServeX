@@ -54,10 +54,21 @@ model ProviderProfile {
   currentLatitude      Float?
   currentLongitude     Float?
   lastLocationUpdatedAt DateTime?
+  currentH3Cell        String?
+  currentH3Resolution  Int?     @default(8)
+  currentHeading       Float?   @default(0.0)
+  currentSpeed         Float?   @default(0.0)
+  membershipType       String   @default("NORMAL") // NORMAL | PREMIUM
 
-  documents   ProviderDocument[]
-  assignments BookingAssignment[]
-  reviews     Review[]
+  documents            ProviderDocument[]
+  assignments          BookingAssignment[]
+  reviews              Review[]
+  wallet               ProviderWallet?
+  subscriptions        ProviderSubscription[]
+  subscriptionPayments SubscriptionPayment[]
+  subscriptionInvoices SubscriptionInvoice[]
+  payouts              ProviderPayout[]
+  financialSnapshots   OrderFinancialSnapshot[]
 }
 
 model ProviderDocument {
@@ -187,11 +198,13 @@ model Booking {
   paymentStatus          String          @default("PENDING") // PENDING, PROCESSING, PAID, FAILED, REFUND_PENDING, REFUNDED
   cancellationReason     String?
 
-  // Real-time tracking columns
+  // Real-time tracking & geospatial columns
   currentEtaMinutes      Int?
   polylineRoute          String?
   lastKnownLatitude      Float?
   lastKnownLongitude     Float?
+  h3Cell                 String?
+  h3Resolution           Int?            @default(8)
 
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
@@ -202,6 +215,8 @@ model Booking {
   payment                Payment?
   invoice                Invoice?
   review                 Review?
+  financialSnapshot      OrderFinancialSnapshot?
+  addressSnapshot        BookingAddressSnapshot?
 }
 
 model BookingAssignment {
@@ -210,11 +225,71 @@ model BookingAssignment {
   booking     Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   providerId  String
   provider    ProviderProfile @relation(fields: [providerId], references: [id])
-  status      String          @default("OFFERED") // OFFERED, ACCEPTED, REJECTED, CANCELLED
+  offerId     String?
+  stage       Int?            @default(1)
+  distanceKm  Float?
+  expiresAt   DateTime?
+  status      String          @default("OFFERED") // OFFERED, ACCEPTED, REJECTED, CANCELLED, EXPIRED
   assignedAt  DateTime        @default(now())
   respondedAt DateTime?
 
   @@unique([bookingId, providerId])
+}
+
+model BookingAddressSnapshot {
+  id                    String   @id @default(uuid())
+  bookingId             String   @unique
+  booking               Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addressId             String?
+  formattedAddress      String   @default("")
+  houseNumber           String?
+  street                String?
+  landmark              String?
+  city                  String   @default("Kolkata")
+  state                 String   @default("West Bengal")
+  postalCode            String   @default("700091")
+  latitude              Float    @default(22.5726)
+  longitude             Float    @default(88.3639)
+  accuracyMeters        Float?
+  confirmedAt           DateTime @default(now())
+  customerInstructions  String?
+  createdAt             DateTime @default(now())
+}
+
+model DispatchTask {
+  id                    String   @id @default(uuid())
+  bookingId             String   @unique
+  radiusKm              Float    @default(5.0)
+  stage                 Int      @default(1)
+  status                String   @default("SEARCHING") // SEARCHING | ASSIGNED | EXHAUSTED | CANCELLED
+  attempts              Int      @default(1)
+  maxAttempts           Int      @default(5)
+  nextAttemptAt         DateTime?
+  startedAt             DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model CompanyCommissionLedger {
+  id                      String          @id @default(uuid())
+  entryNumber             String          @unique // e.g. COM-TXN-173000...
+  bookingId               String?         @unique
+  providerId              String
+  categoryId              String?
+  type                    String          // COMMISSION_REVENUE_CREDIT | SUBSCRIPTION_REVENUE_CREDIT | EXEMPT_SUBSCRIPTION_BENEFIT | REVERSAL
+  grossAmountPaise        Int
+  commissionRatePercent   Float
+  commissionAmountPaise   Int
+  exemptSavingsPaise      Int             @default(0)
+  status                  String          @default("SETTLED") // PENDING | SETTLED | REVERSED
+  description             String
+  reference               String
+  settledAt               DateTime        @default(now())
+  createdAt               DateTime        @default(now())
+
+  @@index([providerId, status])
+  @@index([settledAt])
+  @@index([categoryId])
 }
 
 model BookingStatusHistory {
@@ -314,4 +389,169 @@ model AuditLog {
   details    String?
   ipAddress  String?
   createdAt  DateTime @default(now())
+}
+
+// ── ENTERPRISE SUBSCRIPTION & FINANCIAL REVENUE MODELS ──
+
+model SubscriptionPlan {
+  id                    String                 @id @default(uuid())
+  name                  String                 // e.g. "Monthly Premium", "Quarterly Premium", "Yearly Premium"
+  slug                  String                 @unique // e.g. "monthly-premium", "quarterly-premium", "yearly-premium"
+  description           String?
+  pricePaise            Int                    // Strictly in integer paise (e.g. 29900 = ₹299.00)
+  durationDays          Int                    // e.g. 30, 90, 365
+  commissionRatePercent Float                  @default(0.0) // 0% commission on eligible orders
+  benefits              String                 // JSON array string of benefits
+  badge                 String?                @default("PREMIUM_ZERO_COMMISSION")
+  isActive              Boolean                @default(true)
+  isPopular             Boolean                @default(false)
+  displayOrder          Int                    @default(0)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  subscriptions         ProviderSubscription[]
+  payments              SubscriptionPayment[]
+}
+
+model ProviderSubscription {
+  id                     String                @id @default(uuid())
+  providerId             String
+  provider               ProviderProfile       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  planId                 String
+  plan                   SubscriptionPlan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  status                 String                @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED | PENDING_PAYMENT
+  startDate              DateTime              @default(now())
+  endDate                DateTime
+  autoRenew              Boolean               @default(false)
+  commissionExemptionRate Float                @default(0.0) // 0% commission rate applied during subscription
+  amountPaidPaise        Int
+  paymentMethod          String                @default("ONLINE_UPI")
+  paymentReference       String?
+  cancelledAt            DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  payments               SubscriptionPayment[]
+  invoices               SubscriptionInvoice[]
+
+  @@index([providerId, status])
+}
+
+model SubscriptionPayment {
+  id               String                @id @default(uuid())
+  subscriptionId   String?
+  subscription     ProviderSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  providerId       String
+  provider         ProviderProfile       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  planId           String
+  plan             SubscriptionPlan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  amountPaise      Int
+  currency         String                @default("INR")
+  status           String                @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
+  gatewayOrderId   String                @unique
+  gatewayPaymentId String?
+  gatewaySignature String?
+  paymentMethod    String                @default("ONLINE_UPI")
+  failureReason    String?
+  metadata         String?               // JSON metadata
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([providerId, status])
+}
+
+model SubscriptionInvoice {
+  id             String               @id @default(uuid())
+  invoiceNumber  String               @unique // e.g. HSX-SUB-INV-2026-0001
+  subscriptionId String
+  subscription   ProviderSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  providerId     String
+  provider       ProviderProfile      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  amountPaise    Int
+  taxPaise       Int                  @default(0)
+  totalPaise     Int
+  currency       String               @default("INR")
+  pdfUrl         String?
+  issuedAt       DateTime             @default(now())
+
+  @@index([providerId])
+}
+
+model ProviderWallet {
+  id                       String            @id @default(uuid())
+  providerId               String            @unique
+  provider                 ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  balancePaise             Int               @default(0) // Available for withdrawal
+  pendingPaise             Int               @default(0) // In-progress / unverified
+  totalEarnedPaise         Int               @default(0) // Lifetime gross service earnings
+  totalCommissionPaidPaise Int               @default(0) // Lifetime platform commission paid
+  totalWithdrawnPaise      Int               @default(0) // Lifetime withdrawn
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  transactions             FinancialLedger[]
+  payouts                  ProviderPayout[]
+}
+
+model FinancialLedger {
+  id                String          @id @default(uuid())
+  entryNumber       String          @unique // e.g. LEDGER-TXN-173000...
+  providerId        String?
+  walletId          String?
+  wallet            ProviderWallet? @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  bookingId         String?
+  subscriptionId    String?
+  payoutId          String?
+  type              String          // CREDIT | DEBIT
+  category          String          // ORDER_EARNING | PLATFORM_COMMISSION | SUBSCRIPTION_PURCHASE | PAYOUT_WITHDRAWAL | REFUND_REVERSAL | ADJUSTMENT
+  amountPaise       Int
+  balanceAfterPaise Int
+  description       String
+  reference         String          // Order ref, sub ref, or payout ref
+  metadata          String?         // JSON metadata snapshot
+  createdAt         DateTime        @default(now())
+
+  @@index([providerId, category])
+  @@index([walletId])
+}
+
+model ProviderPayout {
+  id              String          @id @default(uuid())
+  referenceNumber String          @unique // e.g. HSX-PAYOUT-2026-001
+  providerId      String
+  provider        ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  walletId        String
+  wallet          ProviderWallet  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amountPaise     Int
+  status          String          @default("PENDING") // PENDING | APPROVED | PROCESSING | COMPLETED | REJECTED
+  paymentMethod   String          @default("UPI")     // UPI | BANK_TRANSFER
+  accountDetails  String?         // JSON string: e.g. { upiId: "ramesh@oksbi" }
+  processedAt     DateTime?
+  rejectionReason String?
+  adminNotes      String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([providerId, status])
+}
+
+model OrderFinancialSnapshot {
+  id                      String          @id @default(uuid())
+  bookingId               String          @unique
+  booking                 Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  providerId              String
+  provider                ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  membershipType          String          // NORMAL | PREMIUM
+  subscriptionId          String?
+  serviceGrossPaise       Int
+  commissionRatePercent   Float           // 15.0 or 0.0
+  commissionAmountPaise   Int
+  providerNetEarningsPaise Int
+  taxAmountPaise          Int
+  totalCustomerPaidPaise  Int
+  status                  String          @default("SETTLED") // PENDING | SETTLED | REFUNDED
+  settledAt               DateTime?
+  createdAt               DateTime        @default(now())
+
+  @@index([providerId, status])
 }

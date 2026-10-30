@@ -20,15 +20,19 @@
     "test:integration": "vitest run tests/integration",
     "test:workspaces": "npm run test --workspaces --if-present",
     "test:e2e": "playwright test",
-    "verify": "node scripts/verify-env.js",
+    "verify": "node scripts/verify-env.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
+    "@types/supertest": "^7.2.1",
     "concurrently": "^8.2.2",
     "prisma": "^5.14.0",
     "tsx": "^4.11.0",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "h3-js": "^4.5.0"
   }
 }
