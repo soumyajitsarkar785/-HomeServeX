@@ -29,10 +29,12 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
 
   const fetchDashboardData = async () => {
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [resDash, resOrders, resMap] = await Promise.all([
-        fetch('/api/v1/admin/dashboard'),
-        fetch('/api/v1/admin/orders?limit=5'),
-        fetch('/api/v1/admin/dispatch/live-map'),
+        fetch('/api/v1/admin/dashboard', { headers }),
+        fetch('/api/v1/admin/orders?limit=5', { headers }),
+        fetch('/api/v1/admin/dispatch/live-map', { headers }),
       ]);
 
       if (resDash.ok) {

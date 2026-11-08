@@ -1,12 +1,12 @@
 import { Router, Response, NextFunction } from 'express';
 import { prisma } from '../../lib/prisma.js';
-import { authenticate, requireRole, AuthenticatedRequest } from '../../middleware/auth.js';
+import { authenticate, optionalAuthenticate, requireRole, AuthenticatedRequest } from '../../middleware/auth.js';
 import { addressSchema } from '@homeservex/validation';
 
 export const customerRouter = Router();
 
 // GET /api/v1/customers/profile
-customerRouter.get('/profile', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+customerRouter.get('/profile', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     let userId = req.user?.id;
     let profile = userId ? await prisma.customerProfile.findUnique({
@@ -38,7 +38,7 @@ customerRouter.get('/profile', authenticate, async (req: AuthenticatedRequest, r
 });
 
 // GET /api/v1/customers/addresses
-customerRouter.get('/addresses', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+customerRouter.get('/addresses', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     let userId = req.user?.id;
     let profile = userId ? await prisma.customerProfile.findUnique({ where: { userId } }) : null;

@@ -53,7 +53,14 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
         .catch(() => {});
 
       // Fetch bookings list to match overall booking status
-      fetch('/api/v1/bookings')
+      const token = localStorage.getItem('hsx_partner_token') || localStorage.getItem('token') || localStorage.getItem('accessToken');
+      fetch('/api/v1/bookings', {
+        headers: {
+          'x-role': 'PROVIDER',
+          'x-app': 'partner',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data?.data && Array.isArray(data.data) && isMounted) {

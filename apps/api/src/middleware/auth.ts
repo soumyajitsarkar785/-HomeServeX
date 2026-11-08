@@ -57,6 +57,36 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
   next();
 }
 
+export function optionalAuthenticate(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    next();
+    return;
+  }
+
+  const [scheme, token, ...extra] = authHeader.split(' ');
+  if (scheme !== 'Bearer' || !token || extra.length > 0) {
+    next();
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(token, config.jwtAccessSecret);
+    if (
+      typeof decoded !== 'string' &&
+      typeof decoded.id === 'string' &&
+      typeof decoded.role === 'string' &&
+      typeof decoded.email === 'string'
+    ) {
+      req.user = { id: decoded.id, role: decoded.role, email: decoded.email };
+    }
+  } catch {
+    // Continue unauthenticated if token verification fails
+  }
+
+  next();
+}
+
 export function requireRole(...roles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {

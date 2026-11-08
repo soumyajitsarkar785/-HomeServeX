@@ -278,22 +278,25 @@ describe('HOMESERVEX FINAL MASTER ENGINEERING — FULL SPECIFICATION TEST SUITE'
     // Verify Financial Ledger Entries: Exactly 2 transactions for this order
     const ledgers = await prisma.financialLedger.findMany({
       where: { bookingId: booking.id, providerId: providerProfileNormal.id },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { type: 'asc' }],
     });
 
     expect(ledgers.length).toBe(2);
 
+    const grossEntry = ledgers.find(l => l.category === 'GROSS_EARNING_CREDIT') || ledgers[0];
+    const commEntry = ledgers.find(l => l.category === 'COMMISSION_DEBIT') || ledgers[1];
+
     // Entry 1: GROSS_EARNING_CREDIT = +100,000 paise (₹1,000)
-    expect(ledgers[0].type).toBe('CREDIT');
-    expect(ledgers[0].category).toBe('GROSS_EARNING_CREDIT');
-    expect(ledgers[0].amountPaise).toBe(100000);
-    expect(ledgers[0].balanceAfterPaise).toBe(initialBalancePaise + 100000);
+    expect(grossEntry.type).toBe('CREDIT');
+    expect(grossEntry.category).toBe('GROSS_EARNING_CREDIT');
+    expect(grossEntry.amountPaise).toBe(100000);
+    expect(grossEntry.balanceAfterPaise).toBe(initialBalancePaise + 100000);
 
     // Entry 2: COMMISSION_DEBIT = -15,000 paise (₹150)
-    expect(ledgers[1].type).toBe('DEBIT');
-    expect(ledgers[1].category).toBe('COMMISSION_DEBIT');
-    expect(ledgers[1].amountPaise).toBe(15000);
-    expect(ledgers[1].balanceAfterPaise).toBe(initialBalancePaise + 85000);
+    expect(commEntry.type).toBe('DEBIT');
+    expect(commEntry.category).toBe('COMMISSION_DEBIT');
+    expect(commEntry.amountPaise).toBe(15000);
+    expect(commEntry.balanceAfterPaise).toBe(initialBalancePaise + 85000);
 
     // Verify Company Commission Ledger credit
     const companyLedger = await prisma.companyCommissionLedger.findFirst({

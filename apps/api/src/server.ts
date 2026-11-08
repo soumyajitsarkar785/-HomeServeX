@@ -141,6 +141,7 @@ server.on('upgrade', (req, socket, _head) => {
 server.on('error', (err: any) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`[HomeServeX API] Port ${config.port} is already in use. Please terminate existing process or verify active listeners.`);
+    process.exit(1);
   } else {
     console.error('[HomeServeX API] Server error:', err);
   }

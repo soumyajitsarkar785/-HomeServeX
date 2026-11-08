@@ -43,7 +43,9 @@ export const AdminOrdersScreen: React.FC = () => {
   const fetchOrders = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const res = await fetch('/api/v1/admin/orders?limit=50');
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch('/api/v1/admin/orders?limit=50', { headers });
       if (res.ok) {
         const json = await res.json();
         if (json?.data && Array.isArray(json.data)) {
@@ -59,7 +61,9 @@ export const AdminOrdersScreen: React.FC = () => {
 
   const fetchProviders = async () => {
     try {
-      const res = await fetch('/api/v1/admin/providers');
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch('/api/v1/admin/providers', { headers });
       if (res.ok) {
         const json = await res.json();
         if (json?.data && Array.isArray(json.data)) {
@@ -119,9 +123,13 @@ export const AdminOrdersScreen: React.FC = () => {
     if (!selectedOrder?.rawId || !selectedProviderId) return;
     setAssigning(true);
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
       const res = await fetch(`/api/v1/admin/bookings/${selectedOrder.rawId}/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           providerId: selectedProviderId,
           notes: 'Dispatched manually via Admin Console',
@@ -148,9 +156,13 @@ export const AdminOrdersScreen: React.FC = () => {
     if (!selectedOrder?.rawId) return;
     if (!confirm(`Are you sure you want to cancel booking ${selectedOrder.orderNumber}?`)) return;
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
       const res = await fetch(`/api/v1/admin/bookings/${selectedOrder.rawId}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ reason: 'Admin intervention' }),
       });
 

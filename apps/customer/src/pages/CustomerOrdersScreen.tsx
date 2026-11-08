@@ -111,7 +111,11 @@ export const CustomerOrdersScreen: React.FC<CustomerOrdersScreenProps> = ({
   ];
 
   const fetchOrders = () => {
-    fetch('/api/v1/bookings')
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('hsx_customer_token');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    fetch('/api/v1/bookings', { headers })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
@@ -140,9 +144,13 @@ export const CustomerOrdersScreen: React.FC<CustomerOrdersScreenProps> = ({
   const handleCancelOrder = async (orderId: string) => {
     if (!window.confirm(`Are you sure you want to cancel order ${orderId}?`)) return;
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('hsx_customer_token');
       await fetch(`/api/v1/bookings/${orderId.replace('#', '')}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ reason: 'Customer requested cancellation' }),
       });
       setOrders((prev) =>

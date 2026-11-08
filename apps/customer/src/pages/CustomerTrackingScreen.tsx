@@ -43,7 +43,11 @@ export const CustomerTrackingScreen: React.FC<CustomerTrackingScreenProps> = ({
         .catch(() => {});
 
       // Fetch bookings list to match order details
-      fetch('/api/v1/bookings')
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('hsx_customer_token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      fetch('/api/v1/bookings', { headers })
         .then((res) => (res.ok ? res.json() : null))
         .then((json) => {
           if (json?.data && isMounted) {

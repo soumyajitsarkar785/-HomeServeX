@@ -5,7 +5,7 @@ import { latLngToCell } from 'h3-js';
 import { prisma } from '../../lib/prisma.js';
 import { geoDispatch } from '../../lib/geoDispatch.js';
 import { config } from '../../config/env.js';
-import { authenticate, requireRole, AuthenticatedRequest } from '../../middleware/auth.js';
+import { authenticate, optionalAuthenticate, requireRole, AuthenticatedRequest } from '../../middleware/auth.js';
 import { verifyOtpSchema } from '@homeservex/validation';
 import { trackingEngine } from '../../lib/trackingEngine.js';
 import { dispatchEngine } from '../../lib/dispatchEngine.js';
@@ -472,7 +472,7 @@ bookingsRouter.post('/:id/cancel', authenticate, handleCancelBooking);
 bookingsRouter.patch('/:id/cancel', authenticate, handleCancelBooking);
 
 // GET /api/v1/bookings (customer: own, provider: assigned, admin: all)
-bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+bookingsRouter.get('/', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const page = parseInt(req.query.page as string || '1');
     const limit = Math.min(parseInt(req.query.limit as string || '50'), 50);
@@ -485,7 +485,10 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
     if (isPartner) {
       // Restrict provider query: only bookings assigned to this provider OR open/searchable bookings.
       // An unassigned provider must NOT see full address records of other customers' bookings.
-      const pp = await prisma.providerProfile.findUnique({ where: { userId: req.user!.id } });
+      let pp = null;
+      if (req.user?.id) {
+        pp = await prisma.providerProfile.findUnique({ where: { userId: req.user.id } });
+      }
       providerProfileId = pp?.id;
       if (pp) {
         // Show assigned bookings + open bookings (PENDING / SEARCHING_PROVIDER) for dispatch awareness
@@ -496,9 +499,8 @@ bookingsRouter.get('/', authenticate, async (req: AuthenticatedRequest, res: Res
           ],
         };
       } else {
-        // Provider profile not yet created — return empty
-        res.json({ success: true, data: [], meta: { page, limit, total: 0, totalPages: 0 } });
-        return;
+        // Provider profile not yet created or unauthenticated provider checking job feed
+        where = { status: { in: ['PENDING', 'SEARCHING_PROVIDER'] } };
       }
     } else if (req.user?.role === 'CUSTOMER') {
       const cp = await prisma.customerProfile.findUnique({ where: { userId: req.user.id } });
@@ -896,8 +898,8 @@ bookingsRouter.post('/verify-otp', authenticate, async (req: AuthenticatedReques
   }
 });
 
-// POST /api/v1/bookings/:id/status — Seamless real-time state transition
-bookingsRouter.post('/:id/status', async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+// POST, PATCH & PUT /api/v1/bookings/:id/status — Seamless real-time state transition
+const handleBookingStateTransition = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const rawId = (req.params.id || '').trim();
     const cleanRef = rawId.replace(/^#/, '');
@@ -957,7 +959,11 @@ bookingsRouter.post('/:id/status', async (req: AuthenticatedRequest, res: Respon
   } catch (err) {
     next(err);
   }
-});
+};
+
+bookingsRouter.post('/:id/status', handleBookingStateTransition);
+bookingsRouter.patch('/:id/status', handleBookingStateTransition);
+bookingsRouter.put('/:id/status', handleBookingStateTransition);
 
 // POST /api/v1/bookings/:id/accept
 bookingsRouter.post('/:id/accept', authenticate, requireRole('PROVIDER'), async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {

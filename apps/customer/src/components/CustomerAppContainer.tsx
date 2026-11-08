@@ -3,7 +3,7 @@ import { Icons } from '@homeservex/ui';
 import { CustomerHomeScreen } from '../pages/CustomerHomeScreen.js';
 import { CustomerServicesListScreen } from '../pages/CustomerServicesListScreen.js';
 import { CustomerServiceDetailScreen } from '../pages/CustomerServiceDetailScreen.js';
-import { CustomerTrackingScreen } from '../pages/CustomerTrackingScreen';
+import { CustomerTrackingScreen } from '../pages/CustomerTrackingScreen.js';
 import { CustomerOrdersScreen } from '../pages/CustomerOrdersScreen.js';
 import { CustomerOffersScreen } from '../pages/CustomerOffersScreen.js';
 import { CustomerAccountScreen } from '../pages/CustomerAccountScreen.js';

@@ -92,7 +92,11 @@ export const CustomerAccountScreen: React.FC<CustomerAccountScreenProps> = ({ on
   const [profile, setProfile] = useState<any>(null);
 
   React.useEffect(() => {
-    fetch('/api/v1/customers/profile')
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('hsx_customer_token');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    fetch('/api/v1/customers/profile', { headers })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.data) {

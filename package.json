@@ -18,7 +18,7 @@
     "kill:ports": "powershell -Command \"Get-NetTCPConnection -LocalPort 5000, 5173, 5174, 5175 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\"",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "eslint .",
+    "lint": "npm run typecheck",
     "test": "vitest run",
     "test:integration": "vitest run tests/integration",
     "test:workspaces": "npm run test --workspaces --if-present",

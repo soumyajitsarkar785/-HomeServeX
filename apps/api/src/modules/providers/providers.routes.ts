@@ -173,9 +173,10 @@ async function handleLocationUpdate(req: AuthenticatedRequest, res: Response, ne
   }
 }
 
-// PUT & PATCH /api/v1/providers/location (High-Frequency GPS Ingestion)
+// PUT, PATCH & POST /api/v1/providers/location (High-Frequency GPS Ingestion)
 providerRouter.patch('/location', authenticate, requireRole('PROVIDER'), handleLocationUpdate);
 providerRouter.put('/location', authenticate, requireRole('PROVIDER'), handleLocationUpdate);
+providerRouter.post('/location', authenticate, requireRole('PROVIDER'), handleLocationUpdate);
 
 // GET /api/v1/providers/nearby (Geospatial Nearby Search)
 providerRouter.get('/nearby', async (req, res: Response, next: NextFunction): Promise<void> => {
@@ -391,8 +392,8 @@ async function handleGetPendingOffers(req: AuthenticatedRequest, res: Response, 
 providerRouter.get('/offers/pending', authenticate, requireRole('PROVIDER'), handleGetPendingOffers);
 providerRouter.get('/offers', authenticate, requireRole('PROVIDER'), handleGetPendingOffers);
 
-// PATCH /api/v1/providers/bookings/:id/status (e.g. PROVIDER_EN_ROUTE, ARRIVED)
-providerRouter.patch('/bookings/:id/status', authenticate, requireRole('PROVIDER'), async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+// PATCH & POST /api/v1/providers/bookings/:id/status (e.g. PROVIDER_EN_ROUTE, ARRIVED)
+const handleProviderStatusUpdate = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { status } = req.body;
     if (!['PROVIDER_EN_ROUTE', 'ARRIVED'].includes(status)) {
@@ -410,7 +411,9 @@ providerRouter.patch('/bookings/:id/status', authenticate, requireRole('PROVIDER
     next(err);
     return;
   }
-});
+};
+providerRouter.patch('/bookings/:id/status', authenticate, requireRole('PROVIDER'), handleProviderStatusUpdate);
+providerRouter.post('/bookings/:id/status', authenticate, requireRole('PROVIDER'), handleProviderStatusUpdate);
 
 // POST /api/v1/providers/bookings/:id/verify-start — Two-Phase Handshake Step 1
 providerRouter.post('/bookings/:id/verify-start', authenticate, requireRole('PROVIDER'), async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
