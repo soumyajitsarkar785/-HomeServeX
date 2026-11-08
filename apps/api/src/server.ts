@@ -148,12 +148,17 @@ server.on('error', (err: any) => {
 });
 
 import { ensureDbColumns } from './lib/prisma.js';
+import { enterpriseService } from './modules/enterprise/enterprise.service.js';
 
-ensureDbColumns().then(() => {
+Promise.all([
+  ensureDbColumns(),
+  enterpriseService.initEnterpriseTables(),
+]).then(() => {
   server.listen(config.port, '0.0.0.0', () => {
     console.log(`[HomeServeX API] Server running on port ${config.port} (0.0.0.0 - ${config.env}) - Real-Time Geolocation Tracking Engine Active`);
     console.log(`[HomeServeX API] Health check available at http://localhost:${config.port}/health`);
     console.log(`[HomeServeX API] Live tracking endpoints active at /api/v1/bookings/:id/live-tracking-state`);
+    console.log(`[HomeServeX API] Enterprise 2.0 Ecosystem Active: Warranties, Memberships, Checklists, & AI Assistant`);
   });
 }).catch((err) => {
   console.error('[HomeServeX API] DB Migration error:', err);

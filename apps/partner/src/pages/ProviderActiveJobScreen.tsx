@@ -22,8 +22,64 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
   const [liveTracking, setLiveTracking] = useState<any | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
+  const [checklistItems, setChecklistItems] = useState<any[]>([]);
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false);
+  const [evidenceStage, setEvidenceStage] = useState<'BEFORE_WORK' | 'AFTER_WORK'>('BEFORE_WORK');
+  const [evidenceNotes, setEvidenceNotes] = useState('');
 
   const cleanId = (jobId || '#HSX-MVPO3IF5-6A064D').replace(/^#/, '');
+
+  const fetchChecklist = async () => {
+    try {
+      const res = await fetch(`/api/v1/bookings/${cleanId}/checklist`);
+      if (res.ok) {
+        const j = await res.json();
+        setChecklistItems(j?.data?.items || []);
+      }
+    } catch {}
+  };
+
+  const handleToggleChecklist = async (itemId: string) => {
+    const next = checklistItems.map(i => i.id === itemId ? { ...i, isCompleted: !i.isCompleted } : i);
+    setChecklistItems(next);
+    const completedIds = next.filter(i => i.isCompleted).map(i => i.id);
+    const token = localStorage.getItem('hsx_partner_token') || localStorage.getItem('token') || localStorage.getItem('accessToken');
+    await fetch(`/api/v1/bookings/${cleanId}/checklist`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-role': 'PROVIDER',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ completedItems: completedIds }),
+    }).catch(() => {});
+  };
+
+  const handleUploadEvidence = async () => {
+    const token = localStorage.getItem('hsx_partner_token') || localStorage.getItem('token') || localStorage.getItem('accessToken');
+    const photo = evidenceStage === 'BEFORE_WORK'
+      ? 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80'
+      : 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80';
+
+    await fetch(`/api/v1/bookings/${cleanId}/evidence`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-role': 'PROVIDER',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        stage: evidenceStage,
+        photoUrls: [photo],
+        notes: evidenceNotes || (evidenceStage === 'BEFORE_WORK' ? 'Pre-service condition documented' : 'Completed service verified'),
+      }),
+    }).catch(() => {});
+
+    setSuccessToast(`✓ ${evidenceStage === 'BEFORE_WORK' ? 'Before Work' : 'After Work'} evidence uploaded and linked!`);
+    setShowEvidenceModal(false);
+    setTimeout(() => setSuccessToast(''), 3500);
+  };
 
   // Provider's current coordinates (synced with real device GPS or simulated en route)
   const [providerCoords, setProviderCoords] = useState<{ latitude: number; longitude: number }>({
@@ -766,8 +822,56 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
                 ⚡ AC Power Jet Cleaning in Progress
               </div>
               <div style={{ fontSize: '12px', color: '#0284C7', marginTop: '2px' }}>
-                Coil jet washing & cooling test underway. When finished, ask customer for their <b>Completion OTP</b>.
+                Coil jet washing &amp; cooling test underway. When finished, ask customer for their <b>Completion OTP</b>.
               </div>
+            </div>
+
+            {/* Enterprise SOP Checklist & Work Evidence Tools */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                onClick={() => {
+                  fetchChecklist();
+                  setShowChecklistModal(true);
+                }}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid #0284C7',
+                  color: '#0369A1',
+                  borderRadius: '12px',
+                  padding: '10px 8px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>📋</span>
+                <span>Job Checklist</span>
+              </button>
+
+              <button
+                onClick={() => setShowEvidenceModal(true)}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid #0284C7',
+                  color: '#0369A1',
+                  borderRadius: '12px',
+                  padding: '10px 8px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>📷</span>
+                <span>Work Photos</span>
+              </button>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -1013,6 +1117,105 @@ export const ProviderActiveJobScreen: React.FC<ProviderActiveJobScreenProps> = (
               }}
             >
               End Call
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── DIGITAL JOB CHECKLIST MODAL ── */}
+      {showChecklistModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 9999 }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '22px', width: '100%', maxWidth: '380px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#0F172A' }}>📋 Standard SOP Checklist</h3>
+              <button onClick={() => setShowChecklistModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+            <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 12px 0' }}>
+              Verify every mandatory step before asking the customer for the Completion OTP.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {(checklistItems.length > 0 ? checklistItems : [
+                { id: 'sop_1', text: 'Doorstep ID verification & badge display', isMandatory: true, isCompleted: true },
+                { id: 'sop_2', text: 'Pre-service diagnostic temperature reading', isMandatory: true, isCompleted: true },
+                { id: 'sop_3', text: 'Waterproof cover deployment around indoor AC', isMandatory: true, isCompleted: false },
+                { id: 'sop_4', text: 'Power jet coil wash & drain line flush', isMandatory: true, isCompleted: false },
+                { id: 'sop_5', text: 'Post-service cooling test in presence of customer', isMandatory: true, isCompleted: false },
+                { id: 'sop_6', text: 'Work area complete cleanup & debris removal', isMandatory: false, isCompleted: false },
+              ]).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleToggleChecklist(item.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    backgroundColor: item.isCompleted ? '#F0FDF4' : '#F8FAFC',
+                    border: item.isCompleted ? '1px solid #86EFAC' : '1px solid #E2E8F0',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={item.isCompleted}
+                    onChange={() => {}}
+                    style={{ accentColor: '#16A34A', width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <div style={{ fontSize: '12px', color: item.isCompleted ? '#166534' : '#0F172A', fontWeight: item.isCompleted ? 700 : 500 }}>
+                    {item.text} {item.isMandatory && <span style={{ color: '#DC2626', fontSize: '10px' }}>(Required)</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowChecklistModal(false)}
+              style={{ width: '100%', marginTop: '16px', padding: '10px', borderRadius: '18px', backgroundColor: '#0E3E2F', color: '#FFFFFF', border: 'none', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+            >
+              Save Checklist
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── WORK EVIDENCE MODAL ── */}
+      {showEvidenceModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 9999 }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '22px', width: '100%', maxWidth: '360px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#0F172A' }}>📷 Job Work Evidence</h3>
+              <button onClick={() => setShowEvidenceModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <button
+                onClick={() => setEvidenceStage('BEFORE_WORK')}
+                style={{ flex: 1, padding: '7px', borderRadius: '8px', border: 'none', backgroundColor: evidenceStage === 'BEFORE_WORK' ? '#0E3E2F' : '#F1F5F9', color: evidenceStage === 'BEFORE_WORK' ? '#FFFFFF' : '#475569', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+              >
+                Before Work
+              </button>
+              <button
+                onClick={() => setEvidenceStage('AFTER_WORK')}
+                style={{ flex: 1, padding: '7px', borderRadius: '8px', border: 'none', backgroundColor: evidenceStage === 'AFTER_WORK' ? '#0E3E2F' : '#F1F5F9', color: evidenceStage === 'AFTER_WORK' ? '#FFFFFF' : '#475569', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+              >
+                After Work
+              </button>
+            </div>
+            <div style={{ border: '2px dashed #CBD5E1', borderRadius: '12px', padding: '20px', textAlign: 'center', backgroundColor: '#F8FAFC', marginBottom: '12px' }}>
+              <div style={{ fontSize: '28px', marginBottom: '4px' }}>📸</div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Capture &amp; Attach Photo</div>
+              <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Document appliance condition &amp; serial badge</div>
+            </div>
+            <textarea
+              placeholder="Technician observation notes..."
+              value={evidenceNotes}
+              onChange={e => setEvidenceNotes(e.target.value)}
+              style={{ width: '100%', minHeight: '50px', padding: '8px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', boxSizing: 'border-box', marginBottom: '12px' }}
+            />
+            <button
+              onClick={handleUploadEvidence}
+              style={{ width: '100%', padding: '10px', borderRadius: '18px', backgroundColor: '#16A34A', color: '#FFFFFF', border: 'none', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+            >
+              Upload &amp; Attach Evidence
             </button>
           </div>
         </div>

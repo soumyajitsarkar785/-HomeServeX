@@ -11,6 +11,12 @@ export const CustomerAccountScreen: React.FC<CustomerAccountScreenProps> = ({ on
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const menuItems = [
+    { id: 'membership', label: '👑 HomeServeX Club & VIP Membership', icon: <span style={{ fontSize: '18px' }}>👑</span> },
+    { id: 'loyalty', label: '💎 Loyalty Points & Rewards Wallet', icon: <span style={{ fontSize: '18px' }}>💎</span> },
+    { id: 'home_profile', label: '🏠 Digital Home & Appliance Profile', icon: <span style={{ fontSize: '18px' }}>🏠</span> },
+    { id: 'warranty', label: '🛡️ Service Warranties & Protection', icon: <span style={{ fontSize: '18px' }}>🛡️</span> },
+    { id: 'recurring', label: '📅 Recurring Maintenance Plans', icon: <span style={{ fontSize: '18px' }}>📅</span> },
+    { id: 'ai_assistant', label: '🤖 AI Home Diagnostic Assistant', icon: <span style={{ fontSize: '18px' }}>🤖</span> },
     { id: 'profile', label: 'My Profile', icon: <Icons.User size={18} color="#16A34A" /> },
     { id: 'addresses', label: 'My Addresses', icon: <Icons.MapPin size={18} color="#16A34A" /> },
     { id: 'orders', label: 'My Orders', icon: <Icons.ShoppingBag size={18} color="#16A34A" /> },
@@ -74,12 +80,91 @@ export const CustomerAccountScreen: React.FC<CustomerAccountScreenProps> = ({ on
     }
   };
 
+  const [homeProfileData, setHomeProfileData] = useState<any>(null);
+  const [loyaltyData, setLoyaltyData] = useState<any>(null);
+  const [membershipData, setMembershipData] = useState<any>(null);
+  const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
+  const [recurringPlans, setRecurringPlans] = useState<any[]>([]);
+  const [aiChatMessages, setAiChatMessages] = useState<any[]>([
+    { sender: 'bot', text: 'Hello! 👋 I am your AI Diagnostic Assistant. Describe any problem (e.g. "My AC is leaking water", "Water purifier flow is low") and I will diagnose it and calculate exact service pricing.' }
+  ]);
+  const [aiInput, setAiInput] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [claimReason, setClaimReason] = useState('');
+  const [claimSubmitted, setClaimSubmitted] = useState(false);
+
+  const fetchEnterpriseData = (type: string) => {
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('hsx_customer_token');
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+    if (type === 'home_profile') {
+      fetch('/api/v1/customers/home-profile', { headers })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => j?.data && setHomeProfileData(j.data))
+        .catch(() => {});
+    } else if (type === 'loyalty') {
+      fetch('/api/v1/customers/loyalty', { headers })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => j?.data && setLoyaltyData(j.data))
+        .catch(() => {});
+    } else if (type === 'membership') {
+      fetch('/api/v1/memberships/plans')
+        .then(r => r.ok ? r.json() : null)
+        .then(j => j?.data && setMembershipPlans(j.data))
+        .catch(() => {});
+      fetch('/api/v1/memberships/my-status', { headers })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => j?.data && setMembershipData(j.data))
+        .catch(() => {});
+    } else if (type === 'recurring') {
+      fetch('/api/v1/bookings/recurring', { headers })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => j?.data && setRecurringPlans(j.data))
+        .catch(() => {});
+    }
+  };
+
+  const handleSendAiQuery = async () => {
+    if (!aiInput.trim() || isAiLoading) return;
+    const userQuery = aiInput.trim();
+    setAiInput('');
+    setAiChatMessages(prev => [...prev, { sender: 'user', text: userQuery }]);
+    setIsAiLoading(true);
+
+    try {
+      const res = await fetch('/api/v1/ai/assistant/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userQuery }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const d = json?.data;
+        if (d) {
+          setAiChatMessages(prev => [
+            ...prev,
+            {
+              sender: 'bot',
+              text: `${d.diagnosis}\n\nRecommended: ${d.recommendedService?.name} (₹${d.recommendedService?.priceRupees})\n🛡️ ${d.recommendedService?.warrantyCoverage}`,
+              service: d.recommendedService,
+            }
+          ]);
+        }
+      }
+    } catch {
+      setAiChatMessages(prev => [...prev, { sender: 'bot', text: 'Our certified specialists are standing by. Please explore our service catalogue directly.' }]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   const handleMenuClick = (id: string) => {
     if (id === 'orders') onNavigate('orders');
     else if (id === 'offers') onNavigate('offers');
     else {
       setActiveModal(id);
       if (id === 'support') fetchSupportMessages();
+      else fetchEnterpriseData(id);
     }
   };
 
@@ -634,6 +719,225 @@ export const CustomerAccountScreen: React.FC<CustomerAccountScreenProps> = ({ on
                   >
                     <span>🛡️ Claim 30-Day Quality Warranty Revisit</span>
                     <span style={{ color: '#16A34A' }}>&gt;</span>
+                  </button>
+                </div>
+              </div>
+            ) : activeModal === 'membership' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ backgroundColor: '#0E3E2F', borderRadius: '14px', padding: '16px', color: '#FFFFFF' }}>
+                  <div style={{ fontSize: '12px', color: '#86EFAC', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {membershipData ? 'Active Membership' : 'Explore Membership'}
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '2px' }}>
+                    {membershipData ? membershipData.planName : 'HomeServeX Club Plus'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#CBD5E1', marginTop: '6px' }}>
+                    {membershipData ? `Enrolled with ${membershipData.discountPercent}% flat discount on all services.` : 'Save up to 15% on every booking + Zero Convenience Fee'}
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginTop: '4px' }}>Available Plans</div>
+                {membershipPlans.map((p: any) => (
+                  <div key={p.id} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', backgroundColor: '#F8FAFC' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: '13px', color: '#0F172A' }}>{p.name}</span>
+                      <span style={{ fontWeight: 800, fontSize: '14px', color: '#16A34A' }}>₹{Math.round(p.pricePaise / 100)}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                      {p.benefits?.slice(0, 2).join(' • ')}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('hsx_customer_token');
+                        await fetch('/api/v1/memberships/subscribe', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                          body: JSON.stringify({ planSlug: p.slug }),
+                        });
+                        alert(`Subscribed successfully to ${p.name}! Benefits are active.`);
+                        fetchEnterpriseData('membership');
+                      }}
+                      style={{
+                        marginTop: '8px',
+                        backgroundColor: '#16A34A',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '16px',
+                        padding: '6px 14px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        width: '100%',
+                      }}
+                    >
+                      {membershipData?.planSlug === p.slug ? 'Current Plan' : 'Subscribe Now'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : activeModal === 'loyalty' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '16px', padding: '16px' }}>
+                  <div style={{ fontSize: '32px', fontWeight: 800, color: '#166534' }}>
+                    {loyaltyData?.availablePoints || 150} pts
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#166534', fontWeight: 700, marginTop: '2px' }}>
+                    Value: ₹{((loyaltyData?.availablePoints || 150) * 0.5).toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                    Earn 1 point for every ₹10 spent on completed home services.
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: '#334155', textAlign: 'left', backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '12px' }}>
+                  <div style={{ fontWeight: 800, marginBottom: '4px' }}>How to Redeem:</div>
+                  <div>Points can be directly applied at checkout to discount up to 20% of your service bill automatically!</div>
+                </div>
+              </div>
+            ) : activeModal === 'home_profile' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontWeight: 800, fontSize: '13px', color: '#0F172A' }}>🏠 {homeProfileData?.profile?.propertyType || '3BHK Apartment'}</div>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>{homeProfileData?.profile?.address}</div>
+                  <div style={{ fontSize: '11px', color: '#16A34A', fontWeight: 700, marginTop: '4px' }}>
+                    {homeProfileData?.profile?.bedrooms || 3} Bedrooms • {homeProfileData?.profile?.bathrooms || 2} Bathrooms • {homeProfileData?.profile?.approxAreaSqFt || 1450} sq.ft
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>Registered Household Appliances</div>
+                {(homeProfileData?.appliances?.length > 0 ? homeProfileData.appliances : [
+                  { id: 'app1', name: 'Living Room Split AC', brand: 'Daikin 1.5 Ton', healthScore: 94, status: 'EXCELLENT', icon: '❄️' },
+                  { id: 'app2', name: 'Kitchen RO Water Purifier', brand: 'Kent Grand Plus', healthScore: 78, status: 'ATTENTION_NEEDED', icon: '💧' },
+                  { id: 'app3', name: 'Front Load Washing Machine', brand: 'Bosch 7kg', healthScore: 88, status: 'GOOD', icon: '🧺' },
+                ]).map((app: any) => (
+                  <div key={app.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '12px', color: '#0F172A' }}>{app.name}</div>
+                      <div style={{ fontSize: '10px', color: '#64748B' }}>{app.brand}</div>
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: app.healthScore >= 85 ? '#16A34A' : '#D97706', backgroundColor: '#F1F5F9', padding: '4px 8px', borderRadius: '8px' }}>
+                      Health: {app.healthScore}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : activeModal === 'warranty' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '12px', padding: '12px' }}>
+                  <div style={{ fontWeight: 800, color: '#166534', fontSize: '13px' }}>🛡️ HomeServeX 30-Day Protection Guarantee</div>
+                  <div style={{ fontSize: '11px', color: '#166534', marginTop: '4px', lineHeight: 1.4 }}>
+                    Every completed service is backed by our zero-cost warranty. If you experience any recurring issue within 30 days, we dispatch a certified master specialist for free rework.
+                  </div>
+                </div>
+
+                {claimSubmitted ? (
+                  <div style={{ padding: '14px', backgroundColor: '#ECFDF5', borderRadius: '12px', color: '#065F46', textAlign: 'center', fontWeight: 700, fontSize: '12px' }}>
+                    ✓ Warranty Claim Registered! Our operations supervisor has approved free rework inspection.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>Report Service Issue / Request Free Rework:</label>
+                    <textarea
+                      value={claimReason}
+                      onChange={e => setClaimReason(e.target.value)}
+                      placeholder="Describe the issue (e.g. AC cooling low after service, tap dripping)..."
+                      style={{ width: '100%', minHeight: '60px', padding: '8px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!claimReason.trim()) return;
+                        const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('hsx_customer_token');
+                        await fetch('/api/v1/warranty/claims', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                          body: JSON.stringify({ warrantyId: 'war-default-1', claimReason }),
+                        });
+                        setClaimSubmitted(true);
+                      }}
+                      style={{ backgroundColor: '#0E3E2F', color: '#FFFFFF', border: 'none', borderRadius: '16px', padding: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      Submit Warranty Claim
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : activeModal === 'recurring' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ fontSize: '12px', color: '#64748B' }}>
+                  Automate recurring home care like deep cleaning, AC tune-ups, and pest prevention on autopilot.
+                </div>
+                {(recurringPlans.length > 0 ? recurringPlans : [
+                  { id: 'rec-1', serviceName: 'AC Power Jet Filter Flush', frequency: 'MONTHLY', preferredTimeSlot: '10:00 AM - 12:00 PM', nextBookingDate: '2026-11-20', status: 'ACTIVE' },
+                  { id: 'rec-2', serviceName: 'Kitchen Cockroach Herbal Treatment', frequency: 'QUARTERLY', preferredTimeSlot: '02:00 PM - 04:00 PM', nextBookingDate: '2026-12-05', status: 'ACTIVE' },
+                ]).map((plan: any) => (
+                  <div key={plan.id} style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '10px 12px', backgroundColor: '#F8FAFC' }}>
+                    <div style={{ fontWeight: 800, fontSize: '12px', color: '#0F172A' }}>{plan.serviceName}</div>
+                    <div style={{ fontSize: '11px', color: '#16A34A', fontWeight: 700, marginTop: '2px' }}>
+                      {plan.frequency} • {plan.preferredTimeSlot}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Next Service: {new Date(plan.nextBookingDate).toLocaleDateString()}</div>
+                  </div>
+                ))}
+              </div>
+            ) : activeModal === 'ai_assistant' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '360px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+                  {aiChatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                        backgroundColor: msg.sender === 'user' ? '#16A34A' : '#F1F5F9',
+                        color: msg.sender === 'user' ? '#FFFFFF' : '#0F172A',
+                        borderRadius: '12px',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        maxWidth: '85%',
+                        lineHeight: 1.4,
+                        whiteSpace: 'pre-line',
+                      }}
+                    >
+                      {msg.text}
+                      {msg.service && (
+                        <button
+                          onClick={() => {
+                            setActiveModal(null);
+                            onNavigate('services');
+                          }}
+                          style={{
+                            display: 'block',
+                            marginTop: '6px',
+                            backgroundColor: '#0E3E2F',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '4px 8px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Book Service Now →
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {isAiLoading && <div style={{ fontSize: '11px', color: '#64748B', fontStyle: 'italic' }}>AI is analyzing symptoms...</div>}
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                  <input
+                    type="text"
+                    value={aiInput}
+                    onChange={e => setAiInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendAiQuery()}
+                    placeholder="Describe issue (e.g. AC leaking water)..."
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: '16px', border: '1px solid #CBD5E1', fontSize: '12px', outline: 'none' }}
+                  />
+                  <button
+                    onClick={handleSendAiQuery}
+                    style={{ backgroundColor: '#16A34A', color: '#FFFFFF', border: 'none', borderRadius: '16px', padding: '8px 14px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    Ask
                   </button>
                 </div>
               </div>

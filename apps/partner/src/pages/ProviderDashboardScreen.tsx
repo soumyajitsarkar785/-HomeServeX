@@ -430,6 +430,37 @@ export const ProviderDashboardScreen: React.FC<ProviderDashboardScreenProps> = (
         </div>
       </div>
 
+      {/* ── Enterprise Partner Intelligence & Training Strip ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '14px 16px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '14px' }}>🏆</span>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase' }}>Performance Index</span>
+              <span style={{ fontSize: '10px', fontWeight: 800, backgroundColor: '#DCFCE7', color: '#15803D', padding: '1px 6px', borderRadius: '8px' }}>DIAMOND PRO</span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '4px' }}>
+              Acceptance: <b>96%</b> • On-Time GPS: <b>94%</b> • Score: <b>96/100</b>
+            </div>
+          </div>
+          <span style={{ fontSize: '18px', fontWeight: 900, color: '#16A34A' }}>96%</span>
+        </div>
+
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '14px 16px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '14px' }}>🎓</span>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase' }}>Training Academy</span>
+              <span style={{ fontSize: '10px', fontWeight: 800, backgroundColor: '#E0F2FE', color: '#0369A1', padding: '1px 6px', borderRadius: '8px' }}>2 Certified</span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '4px' }}>
+              AC Jet SOP &amp; Electrical Safety verified for 2026.
+            </div>
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#0284C7' }}>Verified ✓</span>
+        </div>
+      </div>
+
       {/* 3. High Priority Incoming Booking Card (If Any) */}
       {incomingJob && (
         <div

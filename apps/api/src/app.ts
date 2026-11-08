@@ -10,6 +10,7 @@ import { customerRouter } from './modules/customers/customers.routes.js';
 import { providerRouter } from './modules/providers/providers.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { paymentsRouter } from './modules/payments/payments.routes.js';
+import { enterpriseRouter } from './modules/enterprise/enterprise.routes.js';
 import { isCorsOriginAllowed } from './middleware/corsOrigin.js';
 
 import fs from 'fs';
@@ -101,6 +102,7 @@ export function createApp() {
 
   // Mount feature routers
   apiV1Router.use('/auth', authRouter);
+  apiV1Router.use('/', enterpriseRouter);
   apiV1Router.use('/services', servicesRouter);
   apiV1Router.use('/bookings', bookingsRouter);
   apiV1Router.use('/customers', customerRouter);

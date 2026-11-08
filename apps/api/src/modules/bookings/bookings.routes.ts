@@ -10,6 +10,7 @@ import { verifyOtpSchema } from '@homeservex/validation';
 import { trackingEngine } from '../../lib/trackingEngine.js';
 import { dispatchEngine } from '../../lib/dispatchEngine.js';
 import { commissionEngine } from '../../lib/commissionEngine.js';
+import { enterpriseService } from '../enterprise/enterprise.service.js';
 import jwt from 'jsonwebtoken';
 
 export const bookingsRouter = Router();
@@ -949,6 +950,8 @@ const handleBookingStateTransition = async (req: AuthenticatedRequest, res: Resp
       await commissionEngine.settleCompletedBookingFinancials(booking.id, assignedProviderId).catch((err) => {
         console.error('[Commission Engine] Status update auto-settlement error:', err);
       });
+      await enterpriseService.activateBookingWarranty(booking.id, 30).catch(() => {});
+      await enterpriseService.creditLoyaltyPoints(booking.customerId, Math.max(10, Math.round(booking.totalAmountPaise / 1000)), `Reward points for booking #${booking.referenceNumber}`, booking.id).catch(() => {});
     }
 
     res.json({
@@ -1332,6 +1335,9 @@ bookingsRouter.post('/:id/completion-otp/verify', authenticate, requireRole('PRO
     await commissionEngine.settleCompletedBooking(booking.id, profile.id).catch((err) => {
       console.error('[Commission Engine] Auto-settlement error:', err);
     });
+
+    await enterpriseService.activateBookingWarranty(booking.id, 30).catch(() => {});
+    await enterpriseService.creditLoyaltyPoints(booking.customerId, Math.max(10, Math.round(booking.totalAmountPaise / 1000)), `Reward points for booking #${booking.referenceNumber}`, booking.id).catch(() => {});
 
     res.json({
       success: true,

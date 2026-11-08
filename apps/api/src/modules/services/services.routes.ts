@@ -1433,6 +1433,7 @@ servicesRouter.get('/offers', async (_req, res: Response) => {
 
 // GET /api/v1/services/:id
 servicesRouter.get('/:id', async (req, res: Response, next: NextFunction) => {
+  if (req.params.id === 'recommendations') return next();
   try {
     const service = await prisma.service.findFirst({
       where: { OR: [{ id: req.params.id }, { slug: req.params.id }], isActive: true },

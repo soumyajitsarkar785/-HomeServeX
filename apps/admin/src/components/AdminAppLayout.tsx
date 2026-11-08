@@ -10,6 +10,8 @@ import { AdminSettingsScreen } from '../pages/AdminSettingsScreen.js';
 import { AdminServicesScreen } from '../pages/AdminServicesScreen.js';
 import { AdminCustomersScreen } from '../pages/AdminCustomersScreen.js';
 import { AdminReportsScreen } from '../pages/AdminReportsScreen.js';
+import { AdminWarrantyDisputesScreen } from '../pages/AdminWarrantyDisputesScreen.js';
+import { AdminCorporateScreen } from '../pages/AdminCorporateScreen.js';
 
 export type AdminSectionKey =
   | 'dashboard'
@@ -20,6 +22,8 @@ export type AdminSectionKey =
   | 'customers'
   | 'services'
   | 'offers'
+  | 'warranty-disputes'
+  | 'corporate'
   | 'reports'
   | 'settings';
 
@@ -42,7 +46,9 @@ export const AdminAppLayout: React.FC<AdminAppLayoutProps> = ({
     { key: 'customers', label: 'Customers', icon: Icons.User },
     { key: 'services', label: 'Services', icon: Icons.Grid },
     { key: 'offers', label: 'Offers', icon: Icons.Gift, screenNumber: '18' },
-    { key: 'reports', label: 'Reports', icon: Icons.TrendingUp },
+    { key: 'warranty-disputes', label: 'Warranty & Disputes', icon: Icons.ShieldCheck, screenNumber: 'DESK' },
+    { key: 'corporate', label: 'Society & Corporate', icon: Icons.Briefcase, screenNumber: 'BULK' },
+    { key: 'reports', label: 'Reports & BI', icon: Icons.TrendingUp },
     { key: 'settings', label: 'Settings', icon: Icons.Settings, screenNumber: '19' },
   ];
 
@@ -64,6 +70,10 @@ export const AdminAppLayout: React.FC<AdminAppLayoutProps> = ({
         return <AdminServicesScreen />;
       case 'offers':
         return <AdminOffersScreen />;
+      case 'warranty-disputes':
+        return <AdminWarrantyDisputesScreen />;
+      case 'corporate':
+        return <AdminCorporateScreen />;
       case 'reports':
         return <AdminReportsScreen />;
       case 'settings':
